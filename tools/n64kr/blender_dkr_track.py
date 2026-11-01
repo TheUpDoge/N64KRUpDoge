@@ -65,13 +65,23 @@ for obj in imported:
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
-    # Every triangle corner was written as its own vertex; weld positions.
-    # UVs and colours live on face corners, so they survive.
-    bpy.ops.mesh.remove_doubles(threshold=0.05)
     bpy.ops.mesh.separate(type="MATERIAL")
     bpy.ops.object.mode_set(mode="OBJECT")
 
 meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
+
+# Every triangle corner was written as its own vertex; weld positions per
+# material object. (Welding before the split would merge DKR's decals into the
+# surface they sit on and delete them as duplicate faces.) UVs and colours live
+# on face corners, so they survive.
+for obj in meshes:
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.remove_doubles(threshold=0.05)
+    bpy.ops.object.mode_set(mode="OBJECT")
 
 # ------------------------------------- vertex colours, collision, materials
 for obj in meshes:
@@ -105,8 +115,10 @@ for obj in meshes:
     obj.hm64_mk64_clip_type = extras.get("mk64_clip", "CLIP_DEFAULT")
     obj.hm64_mk64_draw_layer = extras.get("mk64_draw", "DRAW_OPAQUE")
     if mat is not None:
-        translucent = extras.get("mk64_draw") == "DRAW_TRANSLUCENT"
-        mat["convert_preset"] = "vertex_colored_texture_transparent" if translucent else "vertex_colored_texture"
+        mat["convert_preset"] = {
+            "blend": "vertex_colored_texture_transparent",
+            "cutout": "vertex_colored_texture_cutout",
+        }.get(extras.get("mk64_alpha"), "vertex_colored_texture")
         # The glTF importer multiplies the texture by the vertex colours before
         # Base Color; Fast64's converter needs the image node linked directly.
         if mat.use_nodes:

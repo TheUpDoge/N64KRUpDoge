@@ -78,6 +78,55 @@ def item_boxes(layout):
     return actors
 
 
+MINIMAP_SIZE = 80     # pixels on the long side
+MINIMAP_MARGIN = 4
+MINIMAP_LINE = 2.2    # half-width of the drawn track line, pixels
+
+
+def png_grey(width, height, pixels):
+    import struct
+    import zlib
+
+    def chunk(tag, payload):
+        return struct.pack(">I", len(payload)) + tag + payload + struct.pack(">I", zlib.crc32(tag + payload) & 0xFFFFFFFF)
+
+    rows = b"".join(b"\0" + bytes(pixels[y * width:(y + 1) * width]) for y in range(height))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 0, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(rows, 9)) + chunk(b"IEND", b""))
+
+
+def minimap(layout):
+    """Top-down track line as a greyscale PNG, plus the Props that place the
+    racer dots on it. The game draws a dot at
+    image top-left + (PlayerX, PlayerY) + (pos.x, pos.z) * PlayerScaleFactor
+    (src/render_objects.c draw_minimap_character), so the image uses the
+    same mapping. The PNG is read as 1-channel and packed to 4 bits
+    (src/port/resource/importers/MinimapFactory.cpp)."""
+    xs = [p[0] for p in layout["path"]]
+    zs = [p[2] for p in layout["path"]]
+    span = max(max(xs) - min(xs), max(zs) - min(zs))
+    scale = (MINIMAP_SIZE - 2 * MINIMAP_MARGIN) / span
+    width = int((max(xs) - min(xs)) * scale) + 2 * MINIMAP_MARGIN
+    height = int((max(zs) - min(zs)) * scale) + 2 * MINIMAP_MARGIN
+    width += width % 2  # 4-bit packing works on pixel pairs
+    off_x = MINIMAP_MARGIN - min(xs) * scale
+    off_z = MINIMAP_MARGIN - min(zs) * scale
+    pts = [(x * scale + off_x, z * scale + off_z) for x, z in zip(xs, zs)]
+    pixels = [0] * (width * height)
+    for i in range(len(pts)):
+        (ax, ay), (bx, by) = pts[i], pts[(i + 1) % len(pts)]
+        for y in range(max(0, int(min(ay, by) - 3)), min(height, int(max(ay, by) + 4))):
+            for x in range(max(0, int(min(ax, bx) - 3)), min(width, int(max(ax, bx) + 4))):
+                dx, dy = bx - ax, by - ay
+                t = 0.0 if dx == dy == 0 else max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)))
+                d = math.hypot(x - (ax + t * dx), y - (ay + t * dy))
+                if d <= MINIMAP_LINE:
+                    pixels[y * width + x] = 255
+    props = {"MinimapPlayerX": int(round(off_x)), "MinimapPlayerY": int(round(off_z)),
+             "MinimapPlayerScaleFactor": scale, "MinimapFinishlineX": 0.0, "MinimapFinishlineY": -2.0}
+    return png_grey(width, height, pixels), props, (width, height)
+
+
 def main():
     if len(sys.argv) != 5:
         sys.exit(__doc__)
@@ -99,6 +148,21 @@ def main():
     scene.setdefault("Fog", {"EnableFog": False})
     scene.setdefault("StaticMeshActors", None)
     scene["Actors"] = item_boxes(layout)
+
+    sky = layout.get("sky")
+    if sky:
+        top, horizon = sky["top"], sky["horizon"]
+        floor = [c // 2 for c in horizon]
+        # SkyboxColours order: TopRight, BottomRight, BottomLeft, TopLeft, then the
+        # four floor colours (src/engine/tracks/Track.h).
+        props["Skybox"] = top + horizon + horizon + top + horizon + floor + floor + horizon
+        print(f"Sky from DKR '{sky['dome']}': top {top}, horizon {horizon}")
+
+    png, minimap_props, size = minimap(layout)
+    with open(os.path.join(track_dir, "minimap.png"), "wb") as f:
+        f.write(png)
+    props.update(minimap_props)
+    print(f"Wrote minimap.png {size[0]}x{size[1]}, scale {minimap_props['MinimapPlayerScaleFactor']:.4f}")
 
     with open(scene_path, "w", newline="\n") as f:
         json.dump(scene, f, indent=2)

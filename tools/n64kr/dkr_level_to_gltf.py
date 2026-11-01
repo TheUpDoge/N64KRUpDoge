@@ -42,12 +42,18 @@ SUPPORTED = {
 SECTION_INDEX = {
     "ASSET_TEXTURES_3D": 2,
     "ASSET_TEXTURES_3D_TABLE": 3,
+    "ASSET_TEXTURES_2D": 4,
+    "ASSET_TEXTURES_2D_TABLE": 5,
+    "ASSET_SPRITES": 12,
+    "ASSET_SPRITES_TABLE": 13,
     "ASSET_LEVEL_OBJECT_MAPS_TABLE": 20,
     "ASSET_LEVEL_OBJECT_MAPS": 21,
     "ASSET_LEVEL_HEADERS_TABLE": 22,
     "ASSET_LEVEL_HEADERS": 23,
     "ASSET_LEVEL_MODELS_TABLE": 26,
     "ASSET_LEVEL_MODELS": 27,
+    "ASSET_OBJECT_MODELS_TABLE": 28,
+    "ASSET_OBJECT_MODELS": 29,
     "ASSET_OBJECT_HEADERS_TABLE": 33,
     "ASSET_OBJECTS": 34,
     "ASSET_LEVEL_OBJECT_TRANSLATION_TABLE": 35,
@@ -220,14 +226,28 @@ PATH_SPACING = 20.0
 START_LINE_AHEAD = 20.0
 
 
-def object_names(rom):
+BHV_SCENERY = 2  # include/object_behaviors.h
+MODEL_TYPE_3D = 0  # ObjectHeader.modelType: 0 = 3D model, others = textures / sprites
+
+
+def object_headers(rom):
+    """Per object header: name, behaviour, model type, scale, model ids
+    (ObjectHeader in include/structs.h; pointers are offsets from the header)."""
     objs = rom.section("ASSET_OBJECTS")
     table = rom.table("ASSET_OBJECT_HEADERS_TABLE")
-    names = []
+    headers = []
     for i in range(len(table) - 1):
-        header = objs[table[i]:table[i + 1]]
-        names.append(header[0x60:0x70].split(bytes(1))[0].decode("ascii", "replace") if len(header) >= 0x70 else "")
-    return names
+        h = objs[table[i]:table[i + 1]]
+        if len(h) < 0x70:
+            headers.append({"name": "", "behaviour": -1, "model_type": -1, "scale": 1.0, "models": []})
+            continue
+        count = struct.unpack_from("b", h, 0x55)[0]
+        ids_off = u32(h, 0x10)
+        models = [s32(h, ids_off + 4 * k) for k in range(max(0, count))] if 0 < ids_off < len(h) else []
+        headers.append({"name": h[0x60:0x70].split(bytes(1))[0].decode("ascii", "replace"),
+                        "behaviour": struct.unpack_from("b", h, 0x54)[0], "model_type": struct.unpack_from("b", h, 0x53)[0],
+                        "scale": struct.unpack_from(">f", h, 0x0C)[0], "models": models})
+    return headers
 
 
 def level_objects(rom, model_index):
@@ -244,13 +264,15 @@ def level_objects(rom, model_index):
     if header is None:
         sys.exit("No race level header uses this model.")
     map_ids = (s16(header, 0xBA), s16(header, 0x36))  # main objects, collectables
+    sky_object = s16(header, 0x38)  # object header index of the sky dome (src/tracks.c skydome_spawn)
 
     trans_raw = rom.section("ASSET_LEVEL_OBJECT_TRANSLATION_TABLE")
     trans = [s16(trans_raw, i) for i in range(0, len(trans_raw) - 1, 2)]
-    names = object_names(rom)
+    headers = object_headers(rom)
+    names = [hd["name"] for hd in headers]
     maps = rom.section("ASSET_LEVEL_OBJECT_MAPS")
     mtable = rom.table("ASSET_LEVEL_OBJECT_MAPS_TABLE")
-    found = {"checkpoint": [], "setuppoint": [], "WeaponBalloon": [], "GroundZipper": []}
+    found = {"checkpoint": [], "setuppoint": [], "WeaponBalloon": [], "GroundZipper": [], "scenery": []}
     for map_id in map_ids:
         data = dkr_inflate(maps[mtable[map_id]:mtable[map_id + 1]])
         # u32 byte size, then entries from offset 16 (gObjectMap is s32 *,
@@ -261,7 +283,20 @@ def level_objects(rom, model_index):
             if length == 0:
                 break
             object_id = data[pos] | ((data[pos + 1] & 0x80) << 1)
-            name = names[trans[object_id]] if object_id < len(trans) and 0 <= trans[object_id] < len(names) else ""
+            header_index = trans[object_id] if object_id < len(trans) else -1
+            name = names[header_index] if 0 <= header_index < len(names) else ""
+            hd = headers[header_index] if 0 <= header_index < len(headers) else None
+            if hd and hd["behaviour"] == BHV_SCENERY:
+                # LevelObjectEntry_Scenery; placement as obj_init_scenery (src/object_functions.c)
+                model_index = data[pos + 8]
+                if model_index >= len(hd["models"]):
+                    model_index = 0
+                radius = max(data[pos + 9], 10) / 64.0
+                found["scenery"].append({"name": name, "x": s16(data, pos + 2), "y": s16(data, pos + 4),
+                                         "z": s16(data, pos + 6), "scale": hd["scale"] * radius,
+                                         "angle": data[pos + 0xA] << 8, "solid": data[pos + 0xB],
+                                         "model_type": hd["model_type"],
+                                         "model": hd["models"][model_index] if hd["models"] else -1})
             if name in found:
                 entry = {"x": s16(data, pos + 2), "y": s16(data, pos + 4), "z": s16(data, pos + 6)}
                 if name == "checkpoint":
@@ -271,7 +306,155 @@ def level_objects(rom, model_index):
                     entry.update(racer=data[pos + 8], angle=data[pos + 0xA] * 256)
                 found[name].append(entry)
             pos += length
+    found["sky_object"] = sky_object
     return found
+
+
+def sky_colours(rom, sky_object):
+    """Top and horizon colour of the level's sky dome: vertex colour x mean
+    texture colour, averaged over the top 20% and bottom 15% of the dome."""
+    headers = object_headers(rom)
+    if not (0 <= sky_object < len(headers)) or not headers[sky_object]["models"]:
+        return None
+    table = rom.table("ASSET_OBJECT_MODELS_TABLE")
+    model_id = headers[sky_object]["models"][0]
+    m = dkr_inflate(rom.section("ASSET_OBJECT_MODELS")[table[model_id]:table[model_id + 1]])
+    tex3d, ttable = rom.section("ASSET_TEXTURES_3D"), rom.table("ASSET_TEXTURES_3D_TABLE")
+    tex_off, v_off, t_off, b_off = u32(m, 0x00), u32(m, 0x04), u32(m, 0x08), u32(m, 0x38)
+    means = []
+    for t in range(s16(m, 0x22)):
+        tid = u32(m, tex_off + t * 8) & 0x7FFF
+        w, h, rgba, _, _ = decode_texture(tex3d[ttable[tid]:ttable[tid + 1]])
+        means.append([sum(rgba[i * 4 + k] for i in range(w * h)) / (w * h) / 255.0 for k in range(3)])
+    samples = []
+    for b in range(s16(m, 0x28)):
+        bo = b_off + b * BATCH_SIZE
+        ti = m[bo]
+        mean = means[ti] if ti < len(means) else [1.0, 1.0, 1.0]
+        for f in range(s16(m, bo + 4), s16(m, bo + BATCH_SIZE + 4)):
+            tr = t_off + f * TRIANGLE_SIZE
+            for c in range(3):
+                vo = v_off + (s16(m, bo + 2) + m[tr + 1 + c]) * VERTEX_SIZE
+                samples.append((s16(m, vo + 2), [min(255.0, m[vo + 6 + k] * mean[k]) for k in range(3)]))
+    lo, hi = min(sp[0] for sp in samples), max(sp[0] for sp in samples)
+
+    def band(a, b):
+        sel = [c for y, c in samples if lo + a * (hi - lo) <= y <= lo + b * (hi - lo)]
+        return [int(sum(c[k] for c in sel) / len(sel)) for k in range(3)]
+
+    return {"top": band(0.8, 1.0), "horizon": band(0.0, 0.15), "dome": headers[sky_object]["name"]}
+
+
+MODEL_TYPE_BILLBOARD = 1
+
+
+def sprite_image(rom, sprite_id):
+    """Frame 0 of a DKR sprite assembled from its 2D texture pieces.
+    Returns (width, height, rgba, left, top) where (left, top) is the image's
+    top-left corner relative to the sprite anchor, in pixels with Y up.
+    Piece placement as src/textures_sprites.c: x = posX - anchor.x,
+    y = anchor.y - posY (SpriteAsset in include/structs.h)."""
+    sprites, stable = rom.section("ASSET_SPRITES"), rom.table("ASSET_SPRITES_TABLE")
+    tex2d, ttable = rom.section("ASSET_TEXTURES_2D"), rom.table("ASSET_TEXTURES_2D_TABLE")
+    a = sprites[stable[sprite_id]:stable[sprite_id + 1]]
+    base, frames = s16(a, 0), s16(a, 2)
+    anchor_x, anchor_y = s16(a, 4), s16(a, 6)
+    first, last = a[0x0C], a[0x0C + 1] if frames >= 1 else a[0x0C]
+    pieces = []
+    for tid in range(base + first, base + last):
+        raw = tex2d[ttable[tid]:ttable[tid + 1]]
+        w, h, rgba, _, _ = decode_texture(raw)
+        pos_x, pos_y = struct.unpack_from("bb", raw, 3)
+        pieces.append((pos_x - anchor_x, anchor_y - pos_y, w, h, rgba))
+    left = min(p[0] for p in pieces)
+    right = max(p[0] + p[2] for p in pieces)
+    top = max(p[1] for p in pieces)
+    bottom = min(p[1] - p[3] for p in pieces)
+    width, height = right - left, top - bottom
+    out = bytearray(width * height * 4)
+    for px, py, w, h, rgba in pieces:
+        ox, oy = px - left, top - py
+        for y in range(h):
+            row = rgba[y * w * 4:(y + 1) * w * 4]
+            out[((oy + y) * width + ox) * 4:((oy + y) * width + ox + w) * 4] = row
+    return width, height, bytes(out), left, top
+
+
+def scenery_groups(rom, scenery, textures, groups):
+    """Bake 3D scenery objects into the level as decoration (no collision yet).
+    Object model layout as src/object_models.c object_model_init."""
+    import math
+
+    models = rom.section("ASSET_OBJECT_MODELS")
+    table = rom.table("ASSET_OBJECT_MODELS_TABLE")
+    tex_slot = {t["id"]: i for i, t in enumerate(textures)}
+    cache, placed, skipped = {}, 0, {}
+    sprite_slot = {}
+    for obj in scenery:
+        if obj["model_type"] == MODEL_TYPE_BILLBOARD and obj["model"] >= 0:
+            # Billboards become two crossed vertical quads (both sides) with
+            # the sprite's frame 0 as the texture.
+            if obj["model"] not in sprite_slot:
+                w, h, rgba, left, top = sprite_image(rom, obj["model"])
+                sprite_slot[obj["model"]] = (len(textures), w, h, left, top)
+                textures.append({"id": 0x10000 + obj["model"], "w": w, "h": h, "surface": 0,
+                                 "image": (w, h, rgba), "file": f"dkr_sprite{obj['model']:04d}"})
+            slot, w, h, left, top = sprite_slot[obj["model"]]
+            key = (slot, "visible", False, True, True)
+            corners = groups.setdefault(key, [])
+            sc = obj["scale"]
+            x0, x1, y0, y1 = left * sc, (left + w) * sc, (top - h) * sc, top * sc
+            for dx, dz in ((1.0, 0.0), (0.0, 1.0)):
+                quad = [(x0, y1, 0, 0), (x1, y1, w, 0), (x1, y0, w, h), (x0, y0, 0, h)]
+                pts = [(obj["x"] + qx * dx, obj["y"] + qy, obj["z"] + qx * dz, u * 32, v * 32) for qx, qy, u, v in quad]
+                for tri in ((0, 1, 2), (0, 2, 3), (2, 1, 0), (3, 2, 0)):
+                    for i in tri:
+                        x, y, z, u, v = pts[i]
+                        corners.append((x, y, z, 0xFF, 0xFF, 0xFF, 0xFF, u, v))
+            placed += 1
+            continue
+        if obj["model_type"] != MODEL_TYPE_3D or not (0 <= obj["model"] < len(table) - 1):
+            skipped[obj["name"]] = skipped.get(obj["name"], 0) + 1
+            continue
+        if obj["model"] not in cache:
+            cache[obj["model"]] = dkr_inflate(models[table[obj["model"]]:table[obj["model"] + 1]])
+        m = cache[obj["model"]]
+        tex_off, v_off, t_off, b_off = u32(m, 0x00), u32(m, 0x04), u32(m, 0x08), u32(m, 0x38)
+        num_tex, num_batches = s16(m, 0x22), s16(m, 0x28)
+        local_tex = []
+        for t in range(num_tex):
+            o = tex_off + t * 8
+            tid = u32(m, o) & 0x7FFF
+            if tid not in tex_slot:
+                tex_slot[tid] = len(textures)
+                textures.append({"id": tid, "w": m[o + 4], "h": m[o + 5], "surface": 0})
+            local_tex.append(tex_slot[tid])
+        a = obj["angle"] / 65536.0 * 2.0 * math.pi
+        ca, sa, sc = math.cos(a), math.sin(a), obj["scale"]
+        for b in range(num_batches):
+            bo = b_off + b * BATCH_SIZE
+            tex_index = m[bo]
+            v_base = s16(m, bo + 2)
+            f_start, f_end = s16(m, bo + 4), s16(m, bo + BATCH_SIZE + 4)
+            flags = u32(m, bo + 8)
+            if flags & RENDER_HIDDEN:
+                continue
+            vertex_colours = m[bo + 6] == 0xFF  # BATCH_VTX_COL; otherwise lit by normals
+            key = (None if tex_index == 0xFF or tex_index >= len(local_tex) else local_tex[tex_index],
+                   "visible", False, True, bool(flags & (RENDER_SEMI_TRANSPARENT | RENDER_CUTOUT)))
+            corners = groups.setdefault(key, [])
+            for f in range(f_start, f_end):
+                tr = t_off + f * TRIANGLE_SIZE
+                for c in range(3):
+                    vo = v_off + (v_base + m[tr + 1 + c]) * VERTEX_SIZE
+                    lx, ly, lz = s16(m, vo) * sc, s16(m, vo + 2) * sc, s16(m, vo + 4) * sc
+                    x = obj["x"] + lx * ca + lz * sa
+                    z = obj["z"] - lx * sa + lz * ca
+                    r, g, bl, al = m[vo + 6:vo + 10] if vertex_colours else (0xC8, 0xC8, 0xC8, 0xFF)
+                    u, v = s16(m, tr + 4 + c * 4), s16(m, tr + 6 + c * 4)
+                    corners.append((x, obj["y"] + ly, z, r, g, bl, al, u, v))
+        placed += 1
+    print(f"Scenery: {placed} objects placed" + (f"; skipped (sprites / no model): {skipped}" if skipped else ""))
 
 
 def triangle_floor(tris, x, z, y_above):
@@ -338,7 +521,7 @@ def mk64_layout(objects):
     return transform, [start] + ordered
 
 
-def write_mk64_layout(out_dir, name, transform, ordered, objects, floor_tris):
+def write_mk64_layout(out_dir, name, transform, ordered, objects, floor_tris, sky):
     gates = [transform(c["x"], c["y"], c["z"]) for c in ordered]
     path = []
     for x, y, z in catmull_rom_loop(gates, PATH_SPACING):
@@ -366,6 +549,7 @@ def write_mk64_layout(out_dir, name, transform, ordered, objects, floor_tris):
         "start_grid": place(sorted(objects["setuppoint"], key=lambda e: e["racer"])),
         "item_boxes": place(objects["WeaponBalloon"]),
         "zippers": place(objects["GroundZipper"]),
+        "sky": sky,
     }
     with open(os.path.join(out_dir, f"{name}_mk64.json"), "w") as f:
         json.dump(layout, f, indent=1)
@@ -424,6 +608,7 @@ def convert(rom, name, out_dir, mk64=False):
     os.makedirs(os.path.join(out_dir, "textures"), exist_ok=True)
     if mk64:
         objects = level_objects(rom, index)
+        scenery_groups(rom, objects["scenery"], textures, groups)
         transform, ordered = mk64_layout(objects)
         for key, corners in groups.items():
             groups[key] = [transform(c[0], c[1], c[2]) + tuple(c[3:]) for c in corners]
@@ -431,7 +616,8 @@ def convert(rom, name, out_dir, mk64=False):
         for key, corners in groups.items():
             if key[1] == "visible" and not key[3]:
                 floor_tris += [(corners[i][:3], corners[i + 1][:3], corners[i + 2][:3]) for i in range(0, len(corners), 3)]
-        y_offset = write_mk64_layout(out_dir, name, transform, ordered, objects, floor_tris)
+        sky = sky_colours(rom, objects["sky_object"])
+        y_offset = write_mk64_layout(out_dir, name, transform, ordered, objects, floor_tris, sky)
         for key, corners in groups.items():
             groups[key] = [(c[0], c[1] + y_offset, c[2]) + tuple(c[3:]) for c in corners]
     tex3d = rom.section("ASSET_TEXTURES_3D")
@@ -439,9 +625,13 @@ def convert(rom, name, out_dir, mk64=False):
     images, samplers, gl_textures, materials, material_index = [], [], [], [], {}
     texture_slot = {}
     for t, info in enumerate(textures):
-        raw = tex3d[tex3d_table[info["id"]]:tex3d_table[info["id"] + 1]]
-        w, h, rgba, tflags, fmt = decode_texture(raw)
-        file = f"textures/dkr_tex{info['id']:04d}.png"
+        if "image" in info:
+            (w, h, rgba), tflags, fmt = info["image"], 0, 0
+            file = f"textures/{info['file']}.png"
+        else:
+            raw = tex3d[tex3d_table[info["id"]]:tex3d_table[info["id"] + 1]]
+            w, h, rgba, tflags, fmt = decode_texture(raw)
+            file = f"textures/dkr_tex{info['id']:04d}.png"
         with open(os.path.join(out_dir, file), "wb") as f:
             f.write(png_bytes(w, h, rgba))
         images.append({"uri": file})
@@ -449,7 +639,14 @@ def convert(rom, name, out_dir, mk64=False):
                          "wrapS": 33071 if tflags & TEX_FLAG_CLAMP_S else 10497,
                          "wrapT": 33071 if tflags & TEX_FLAG_CLAMP_T else 10497})
         gl_textures.append({"source": t, "sampler": t})
-        texture_slot[t] = (w, h, fmt)
+        alphas = rgba[3::4]
+        if all(a == 255 for a in alphas):
+            alpha_mode = "opaque"
+        elif all(a in (0, 255) for a in alphas) or tflags & 0x10:
+            alpha_mode = "cutout"  # 1-bit alpha (texture flag 0x10 = cutout)
+        else:
+            alpha_mode = "blend"
+        texture_slot[t] = (w, h, fmt, alpha_mode)
 
     buffer = bytearray()
     accessors, buffer_views, primitives = [], [], {"visible": [], "hidden": []}
@@ -457,7 +654,12 @@ def convert(rom, name, out_dir, mk64=False):
         tex_index, category, water, no_collision, transparent = key
         if not corners:
             continue
-        mat_name = ("dkr_tex%04d" % textures[tex_index]["id"]) if tex_index is not None else "dkr_vertex_colour"
+        if tex_index is None:
+            mat_name = "dkr_vertex_colour"
+        elif "file" in textures[tex_index]:
+            mat_name = textures[tex_index]["file"]
+        else:
+            mat_name = "dkr_tex%04d" % textures[tex_index]["id"]
         mat_name += "_water" if water else ""
         mat_name += "_nocollide" if no_collision else ""
         mat_name += "_transparent" if transparent else ""
@@ -472,13 +674,19 @@ def convert(rom, name, out_dir, mk64=False):
                 mk64_extras = {"mk64_surface": "SURFACE_DEFAULT", "mk64_clip": "CLIP_DOUBLE_SIDED_WALL",
                                "mk64_draw": "DRAW_INVISIBLE"}
             else:
+                # DKR marks transparency on the texture (alpha / header flags), not
+                # only on the batch, so classify from the decoded texture.
+                alpha_mode = texture_slot[tex_index][3] if tex_index is not None else "opaque"
+                if transparent or water:
+                    alpha_mode = "blend" if alpha_mode != "cutout" or water else alpha_mode
                 mk64_extras = {"mk64_surface": DKR_TO_MK64_SURFACE.get(surface, "ASPHALT"),
                                "mk64_clip": "CLIP_NONE" if no_collision else "CLIP_DEFAULT",
-                               "mk64_draw": "DRAW_TRANSLUCENT" if (transparent or water) else "DRAW_OPAQUE"}
+                               "mk64_draw": "DRAW_TRANSLUCENT" if alpha_mode == "blend" else "DRAW_OPAQUE",
+                               "mk64_alpha": alpha_mode}
             mat["extras"] = dict(mk64_extras, dkr_surface=surface)
-            if transparent or water:
+            if mk64_extras.get("mk64_alpha") == "blend":
                 mat["alphaMode"] = "BLEND"
-            elif tex_index is not None and texture_slot[tex_index][2] in (0, 1, 4, 5, 6):
+            elif mk64_extras.get("mk64_alpha") == "cutout":
                 mat["alphaMode"] = "MASK"
             material_index[mat_name] = len(materials)
             materials.append(mat)
