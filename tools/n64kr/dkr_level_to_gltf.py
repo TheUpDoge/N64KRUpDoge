@@ -55,6 +55,9 @@ SECTION_INDEX = {
     "ASSET_LEVEL_MODELS": 27,
     "ASSET_OBJECT_MODELS_TABLE": 28,
     "ASSET_OBJECT_MODELS": 29,
+    "ASSET_ANIMATION_IDS": 30,
+    "ASSET_OBJECT_ANIMATIONS_TABLE": 31,
+    "ASSET_OBJECT_ANIMATIONS": 32,
     "ASSET_OBJECT_HEADERS_TABLE": 33,
     "ASSET_OBJECTS": 34,
     "ASSET_LEVEL_OBJECT_TRANSLATION_TABLE": 35,
@@ -581,11 +584,13 @@ def write_mk64_layout(out_dir, name, transform, ordered, objects, floor_tris, sk
     return floor_offset
 
 
-def write_gltf(rom, out_dir, name, groups, textures):
+def write_gltf(rom, out_dir, name, groups, textures, targets=None, target_names=None):
     """Write groups of triangle corners as glTF 2.0 + PNG textures.
     groups: {(texture index or None, "visible"/"hidden", water, no_collision,
     transparent): [(x, y, z, r, g, b, a, u, v), ...]}; textures: list of
-    {"id", "w", "h", "surface"} (3D texture ids) or {"image": (w, h, rgba), "file"}."""
+    {"id", "w", "h", "surface"} (3D texture ids) or {"image": (w, h, rgba), "file"}.
+    targets (optional): {group key: [[(dx, dy, dz) per corner] per morph target]},
+    named by target_names (imported by Blender as shape keys)."""
     os.makedirs(os.path.join(out_dir, "textures"), exist_ok=True)
     tex3d = rom.section("ASSET_TEXTURES_3D")
     tex3d_table = rom.table("ASSET_TEXTURES_3D_TABLE")
@@ -684,12 +689,27 @@ def write_gltf(rom, out_dir, name, groups, textures):
             acc.update(extra)
             accessors.append(acc)
             attrs[attr] = len(accessors) - 1
-        primitives[category].append({"attributes": attrs, "material": material_index[mat_name], "mode": 4})
+        prim = {"attributes": attrs, "material": material_index[mat_name], "mode": 4}
+        if targets:
+            prim["targets"] = []
+            for deltas in targets[key]:
+                blob = b"".join(struct.pack("<3f", *d) for d in deltas)
+                while len(buffer) % 4:
+                    buffer += b"\0"
+                buffer_views.append({"buffer": 0, "byteOffset": len(buffer), "byteLength": len(blob)})
+                buffer += blob
+                accessors.append({"bufferView": len(buffer_views) - 1, "componentType": 5126, "count": count,
+                                  "type": "VEC3", "min": [min(d[i] for d in deltas) for i in range(3)],
+                                  "max": [max(d[i] for d in deltas) for i in range(3)]})
+                prim["targets"].append({"POSITION": len(accessors) - 1})
+        primitives[category].append(prim)
 
     meshes, nodes = [], []
     for category, node_name in (("visible", f"{name}_visible"), ("hidden", f"{name}_invisible_walls")):
         if primitives[category]:
             meshes.append({"name": node_name, "primitives": primitives[category]})
+            if targets and target_names:
+                meshes[-1]["extras"] = {"targetNames": list(target_names)}
             nodes.append({"name": node_name, "mesh": len(meshes) - 1})
 
     bin_name = f"{name}.bin"

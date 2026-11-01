@@ -198,6 +198,27 @@ def steer_for_frame(frame):
     return MAX_STEER * (frame % STEER_BLOCK) / (STEER_BLOCK - 1)
 
 
+# Driver pose: DKR's driving animation (shape keys anim0_fNN from the exporter)
+# at frame 40 - steerAngle / 2 (racer.c): 40 straight, 73 full left lock. MK64
+# mirrors these sprites for right turns.
+DRIVE = info.get("drive_animation", {})
+
+
+def pose_for_frame(frame):
+    straight, full = DRIVE.get("straight", 40), DRIVE.get("full_left", 73)
+    if frame not in STEERING_FRAMES:
+        return straight
+    return round(straight + (full - straight) * (frame % STEER_BLOCK) / (STEER_BLOCK - 1))
+
+
+def set_pose(anim_frame):
+    name = f"anim0_f{anim_frame:02d}"
+    for o in body:
+        if o.data.shape_keys:
+            for kb in o.data.shape_keys.key_blocks[1:]:
+                kb.value = 1.0 if kb.name == name else 0.0
+
+
 def update_wheels(spin, steer=0.0):
     """Pick each wheel's sprite frame for the current camera view (call after
     frame_set). Front (steering) wheels see the camera rotated by the steering
@@ -208,7 +229,7 @@ def update_wheels(spin, steer=0.0):
     for wh in wheels:
         d = cam_local - wh["pos"]
         if wh["steers"] and steer:
-            c, s_ = math.cos(-steer), math.sin(-steer)
+            c, s_ = math.cos(steer), math.sin(steer)
             d = mathutils.Vector((d.x * c - d.y * s_, d.x * s_ + d.y * c, d.z))
         angle = math.atan2(abs(d.x), math.hypot(d.y, d.z))  # 0 = head-on, pi/2 = side on
         images = wh["spins"][spin % len(wh["spins"])]
@@ -222,6 +243,8 @@ def update_wheels(spin, steer=0.0):
 def render_frame(frame, spin, path):
     scene.frame_set(frame)
     update_wheels(spin, steer_for_frame(frame))
+    if DRIVE.get("frames"):
+        set_pose(pose_for_frame(frame))
     scene.render.filepath = path
     bpy.ops.render.render(write_still=True)
 

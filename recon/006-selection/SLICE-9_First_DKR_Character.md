@@ -2,7 +2,7 @@
 
 Project: N64 Kart Racing (N64KR)
 Date: 2026-11-01
-Status: IN PROGRESS. Step 1 (art pipeline) rendering; engine slot for a 9th character not started.
+Status: IN PROGRESS. Step 1 (art pipeline): Diddy renders with driving pose and front-wheel steering, in-game check pending; engine slot for a 9th character not started.
 
 ## Plan
 1. **Art pipeline**: DKR racer 3D model → MK64 kart sprite frames. Validate by replacing an existing character's sprites with a texture pack (supported by SpaghettiKart).
@@ -39,3 +39,14 @@ Two long-term rendering routes for DKR racers (user note: DKR racers are 3D):
 - [VERIFIED: decomp] DKR cars steer only attach points 2 and 3: `obj[2]/obj[3]->trans.rotation.y_rotation = gCurrentStickX * 100` (`src/racer.c:6215-6218`); 0 and 1 stay straight. For Diddy's car, 2 and 3 are the `fronttyre` parts.
 - [VERIFIED: setup .blend] Frames 0–188 are 9 blocks of 21: within a block `Kart Root` yaws the kart 3°/frame relative to the camera (frame 0: 180°, frame 20: 120°) and Mario's arm pose steers (pose period 21 frames). Frames 189–288 keep him straight; 289–320 tumble.
 - Renderer: front wheels get a steering yaw that grows with the frame's position in its block, `steer = MAX × (frame % 21) / 20`, MAX = stick 70 × 100 = 7000/65536 turn (~38°), applied by rotating the camera offset into the wheel's yaw (as DKR does) before picking the angle frame. Rear wheels follow the body only. Frame 20 preview: rear wheels at the body's angle, front-left wheel turned further into the turn.
+- Steering sign fix (user feedback: "the rear tires are turning"): per-wheel angle debug showed the front wheels turning *against* the body in frames 0–20 (front 50–57° vs rear 59–65° at frame 20), so the straight rear wheels looked like the turning ones. The steering rotation sign was inverted; fixed. [VERIFIED: debug output; in-game check pending]
+
+### Driver pose (user feedback: "the character is doing a T-pose")
+- [VERIFIED: decomp] The model's base vertices are a T-pose; DKR always draws racers through vertex animation. Driving uses animation 0 with frame `40 - steerAngle / 2`, clamped 0..73 (`src/racer.c:1794-1805`); steerAngle follows stick x, so 40 is straight, lower frames steer right, higher frames steer left.
+- [VERIFIED: decomp asm + ROM probe] Vertex animation format, read from `obj_animate` (`src/hasm/obj_animate.s`) and `model_anim_init` (`src/object_models.c:892`):
+  - `ASSET_ANIMATION_IDS` (section 30): s16 per object model, its range in `ASSET_OBJECT_ANIMATIONS` (31 table / 32 data). Each animation is DKR-compressed; s32 keyframe count first.
+  - Keyframe 0: 12-byte header, then s16 xyz offset per animated vertex, added to the base vertex. Keyframes 1..: stride `12 + 3 × animated count`, 12-byte header then s8 xyz deltas, applied cumulatively. A frame is 1/16 keyframe; the fraction scales the next keyframe's delta (`delta × t >> 4`). The keyframe headers (s16s read at bytes 0/2/4/10) are not used yet.
+  - Model 0x4A = animated vertex count, 0x4C = s16 animated slot per vertex (−1 static); several vertices can share a slot.
+  - Diddy (model 19): 325 vertices, 232 animated using 111 slots; 5 animations; animation 0 has 6 keyframes = 80 frames.
+- Exporter writes animation 0's frames as glTF morph targets (Blender shape keys `anim0_fNN`); the renderer picks the pose per sprite frame: frames 0–188 go from 40 (straight) to 73 (full left lock) over each 21-frame block, alongside the front-wheel steer; other frames stay at 40. MK64 mirrors these sprites for right turns.
+- [VERIFIED: render] Front views of poses 0 / 40 / 73: leaning to Diddy's right / straight with both hands on the wheel / leaning to his left. The sprite previews show no T-pose.
