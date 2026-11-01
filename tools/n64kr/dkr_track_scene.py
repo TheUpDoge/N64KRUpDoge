@@ -108,8 +108,10 @@ def minimap(layout):
     scale = (MINIMAP_SIZE - 2 * MINIMAP_MARGIN) / span
     width = int((max(xs) - min(xs)) * scale) + 2 * MINIMAP_MARGIN
     height = int((max(zs) - min(zs)) * scale) + 2 * MINIMAP_MARGIN
-    width += width % 2  # 4-bit packing works on pixel pairs
-    off_x = MINIMAP_MARGIN - min(xs) * scale
+    # 4-bit (I4) textures need a width that's a multiple of 16 texels, or each
+    # row is fetched from the wrong place and the minimap comes out striped.
+    width = (width + 15) // 16 * 16
+    off_x = (width - (max(xs) - min(xs)) * scale) / 2.0 - min(xs) * scale  # centred in the padded width
     off_z = MINIMAP_MARGIN - min(zs) * scale
     pts = [(x * scale + off_x, z * scale + off_z) for x, z in zip(xs, zs)]
     pixels = [0] * (width * height)
