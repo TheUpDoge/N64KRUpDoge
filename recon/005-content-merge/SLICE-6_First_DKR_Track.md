@@ -49,6 +49,7 @@ A mod folder/archive with `scene.json` (props, minimap, actors, environment, rea
 ## Automated pipeline (2026-11-01)
 1. `python -I tools/n64kr/dkr_level_to_gltf.py "<DKR .z64>" ancient_lake build/dkr_tracks --mk64`
 2. `blender.exe -b --python tools/n64kr/blender_dkr_track.py -- build/dkr_tracks/ancient_lake_mk64 build/x64/mods ancient_lake`
+3. `python -I tools/n64kr/dkr_track_scene.py build/dkr_tracks/ancient_lake_mk64 build/x64/mods ancient_lake "Ancient Lake"`
 
 Output: `build/x64/mods/n64kr-dkr-ancient-lake/` (git-ignored; ROM data).
 
@@ -86,4 +87,5 @@ Output: `build/x64/mods/n64kr-dkr-ancient-lake/` (git-ignored; ROM data).
 1. **Minimap is off.** Expected: CustomTrack uses Mario Raceway's minimap texture and default positions (`src/engine/tracks/CustomTrack.cpp` constructor). Needs a generated minimap and scene.json minimap settings.
 2. **Missing visuals.** [HYPOTHESIS] DKR scenery (trees, `Animation` objects, props) are separate object models placed by the object map, not level geometry, so the converter doesn't include them yet. Skybox is CustomTrack's default.
 3. **No pickups.** Item boxes (8 DKR `WeaponBalloon` positions) and zippers are in `<track>_mk64.json` but not placed.
+   - Fix: `tools/n64kr/dkr_track_scene.py` writes `scene.json` (keeps game-generated Props; sets Name, DebugName, ResourceName `n64kr:dkr_<track>`) with `Actors` = `{"Name": "mk:item_box", "Location": {x,y,z}}` (format: `src/engine/SpawnParams.h`, `src/engine/editor/SceneManager.cpp` LoadActors, `src/engine/registry/RegisterActors.cpp`). Each balloon → row of 3 boxes, 18 units apart, across the path. `spawn_item_box` snaps to the surface below `y + 10` and skips Time Trials (`src/racing/actors.c:1081-1096`). Ancient Lake: 24 boxes. Not yet tested in game.
 4. **Other racers overlap and look transparent.** Cause unknown; needs a closer description/screenshot. [HYPOTHESIS] draw-layer ordering of DKR's translucent water/decals, or every section using id 0xFF.
