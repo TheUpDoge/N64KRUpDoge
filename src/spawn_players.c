@@ -29,6 +29,7 @@
 #include "decode.h"
 #include "port/Game.h"
 #include "n64kr/vehicle_profile.h" // N64KR HOOK
+#include "n64kr/character_select.h" // N64KR HOOK
 
 f32 D_80165210[8];
 f32 D_80165230[8];
@@ -84,6 +85,7 @@ void spawn_player(Player* player, s8 playerIndex, f32 startingRow, f32 startingC
 
     player->type = PLAYER_INACTIVE;
     player->kartPropulsionStrength = 0;
+    characterId = n64kr_spawn_character(playerIndex, characterId, playerType); // N64KR HOOK
     player->characterId = characterId;
     n64kr_assign_vehicle_profile(player); // N64KR HOOK
     player->kartGraphics = 0;

@@ -2,7 +2,7 @@
 
 Project: N64 Kart Racing (N64KR)
 Date: 2026-11-01
-Status: IN PROGRESS. Step 1 (art pipeline): Diddy renders with driving pose and front-wheel steering, in-game check pending; engine slot for a 9th character not started.
+Status: IN PROGRESS. Step 1 (art pipeline) accepted by the user; step 2 (engine slot) built, in-game check pending; step 3 (grid > 8, CPU choice) not started.
 
 ## Plan
 1. **Art pipeline**: DKR racer 3D model → MK64 kart sprite frames. Validate by replacing an existing character's sprites with a texture pack (supported by SpaghettiKart).
@@ -53,3 +53,38 @@ Two long-term rendering routes for DKR racers (user note: DKR racers are 3D):
 - [VERIFIED: render] Front views of poses 0 / 40 / 73: leaning to Diddy's right / straight with both hands on the wheel / leaning to his left. The sprite previews show no T-pose.
 - Next in-game report: "front is fixed but the rears are turning again". Cause [VERIFIED: debug output + renders]: each wheel picked its sprite angle from its own position, and the sprite camera is close (≈358 DKR units behind, wheels ±40 apart), so at frame 6 (body turned 18°) the rear-right tyre got 25° and the rear-left 12°. The far tyre's disc then faced sideways like a steered wheel; a 3D tyre would hide that inner face behind the body. Fix: all wheels take the view direction from the vehicle centre (rears now 17°/17° at frame 6, 58°/58° at frame 20; fronts add the steer: 29°, 79°).
 - Also matched DKR's flip [VERIFIED: decomp src/camera.c:1097-1118]: on the negative side DKR turns the sprite 180° in its plane (`tiltAngle += 0x8000`), not a one-axis mirror; the side is the sign of the lateral offset, negated when the camera is in front. No visible change for Diddy's tyre (its sprite is vertically symmetric). DKR's small camera-height tilt is not applied.
+- The user moved on after the centre-angle fix ("sure, lets move on"); art pipeline accepted.
+
+## Step 2: engine slot (Diddy = character id 9)
+
+### Decisions
+- **Id 8 stays MK64's "no character" marker** (time trial records with no time, `menu_items.c` `render_lap_times`; minimap `render_objects.c:2633`). The registry keeps a pass-through entry at 8 and new characters start at 9, so neither marker site changes.
+- **Diddy takes a seat.** Until the select grid grows, the player picks any of the 8 cells and presses **L**; "Diddy" shows over the cursor. Menu state (`gCharacterSelections`) keeps the stock cell, so everything keyed on it still works: CPU rosters (`cpu_forPlayer`, `cpu_forTwoPlayer`) and GP rivals (`code_80005FD0.c:3399`) treat Diddy as that cell's character, which then doesn't race. Only the human's racer spawns as id 9 (`spawn_player` hook).
+- **Own kart sprites, borrowed rest.** Registry fields added: `stats` (stock MK64 stats when the vehicle profile is "own character"; read through `n64kr_char_stats` in `n64kr_stats_id`) and `kartFolder`. Diddy: sprites laid out like Mario's (`sprites = MARIO`, `kartFolder = "diddy_kart"`); voice, HUD, body, AI and stats from Toad (the closest lightweight) until he has his own. [CONCLUSION: placeholder choice]
+
+### New texture paths [VERIFIED: source + o2r]
+- SpaghettiKart reads a PNG only where a binary texture resource already exists: `MK64::ResourceFactoryBinaryTextureV0/V1::ReadResource` look for `<path>.png` after the resource loader found `<path>` (`src/port/resource/importers/BetterTextureFactory.cpp:28-41`). A brand-new path (`textures/karts/diddy_kart/...`) therefore needs a resource file too.
+- Resource format (`mk64.o2r`): 0x40-byte header (`00000000`, `"XETO"` = OTEX, version 0, id `deadbeefdeadbeef`, zeros), then u32 type, width, height, data size, data. Kart frames are type 4 (CI8) 64×64.
+- The packer (`blender_dkr_racer_sprites.py`, any non-stock slot) writes a stub resource (header + type 4, 64×64, size 0) next to each PNG; the PNG is what loads. New `--package-only` repackages existing renders. Output: `build/x64/mods/n64kr-dkr-diddy/` (1188 frames + 1188 stubs). The old pack over Mario moved to `build/dkr_racers/old-mario-replacement-pack/` (out of `mods/`).
+
+### Code
+- `src/n64kr/character.{h,c}`: reserved entry 8 `(none)`, Diddy at 9 (`N64KR_CHAR_NONE`, `N64KR_CHAR_DIDDY`), fields `stats`, `kartFolder`, accessor `n64kr_char_stats`.
+- `src/n64kr/kart_sprites.cpp`: `n64kr_kart_texture(characterId, stockPath)` swaps the stock folder name for the character's `kartFolder` (cached strings).
+- `src/n64kr/character_select.{h,c}`: L toggle + name label, `n64kr_human_character`, `n64kr_spawn_character`, `n64kr_gp_seed_character`.
+- Hooks (`// N64KR HOOK`):
+  - `kart_dma.c`: the 8 kart texture assignments (`load_kart_texture`, `load_kart_texture_non_blocking`) go through `n64kr_kart_texture`.
+  - `spawn_players.c` `spawn_player`: human spawns as `n64kr_spawn_character(...)`.
+  - `menus.c` / `menu_items.c`: L input and label beside the vehicle-select hooks.
+  - `menu_items.c` `func_800A3A10`: GP standings seeded from the racers' ids (ascending; 0..7 for a stock roster, so stock order is unchanged) instead of assuming 0..7.
+  - `gGPPointsByCharacterId[8]` → `[N64KR_MAX_CHARACTERS]` (reset loop uses `ARRAY_COUNT`); `gGetPlayerByCharacterId[10]` → `[N64KR_MAX_CHARACTERS]`.
+  - Ending (`ending/code_80281780.c`): the human's podium place compares the character they raced as; `D_802874D8.unk1E` holds it, and its three portrait lookups in `menu_items.c` go through `n64kr_char_hud`.
+  - `vehicle_profile.c`: "own character" stats via `n64kr_char_stats`.
+
+### Build [VERIFIED: build output]
+Debug and Release: 0 errors, no warnings from `src/n64kr`.
+
+### Known limits (this step)
+- Diddy is human-only; CPUs never pick him.
+- HUD shows Toad's portrait, name and minimap icon for Diddy; voice is Toad's. With Toad also racing as a CPU, the standings show two "Toad"s.
+- Time trial records and ghosts store the stock cell (3-bit save field), so a Diddy record shows as that character.
+- The select screen shows the stock cell's face; only the label says Diddy.

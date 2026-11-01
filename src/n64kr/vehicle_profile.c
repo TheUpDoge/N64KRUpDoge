@@ -3,6 +3,7 @@
 
 #include "main.h"
 #include "menus.h"
+#include "n64kr/character.h"
 #include "n64kr/hover.h"
 #include "n64kr/movement.h"
 #include "n64kr/vehicle_profile.h"
@@ -79,7 +80,7 @@ s32 n64kr_stats_id(const Player* player) {
     s32 profileId = n64kr_vehicle_profile_id(player);
 
     if (!is_valid_profile(profileId) || (sProfiles[profileId].statsId == N64KR_STATS_OWN_CHARACTER)) {
-        return player->characterId;
+        return n64kr_char_stats(player->characterId);
     }
     return sProfiles[profileId].statsId;
 }

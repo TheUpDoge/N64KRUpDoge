@@ -54,6 +54,7 @@
 #include "src/port/interpolation/FrameInterpolation.h"
 #include "audio/heap.h"
 #include "n64kr/vehicle_select.h" // N64KR HOOK
+#include "n64kr/character_select.h" // N64KR HOOK
 #include <assets/models/startup_logo.h>
 
 const char* GetCupName(void);
@@ -70,7 +71,7 @@ void* gSomeDLBuffer;
  * Indicates number of Grand Prix points that character
  * has scored
  */
-s8 gGPPointsByCharacterId[8];
+s8 gGPPointsByCharacterId[N64KR_MAX_CHARACTERS]; // N64KR HOOK: was [8]
 s8 gCharacterIdByGPOverallRank[8];
 s8 D_8018D9D8;
 s8 D_8018D9D9;
@@ -6228,7 +6229,7 @@ void add_menu_item(s32 type, s32 column, s32 row, s8 priority) {
             D_8018ED90 = 0;
             break;
         case MENU_ITEM_TYPE_130:
-            temp_a1 = D_800EFD64[D_802874D8.unk1E];
+            temp_a1 = D_800EFD64[n64kr_char_hud(D_802874D8.unk1E)]; // N64KR HOOK
             if (D_802874D8.unk1D >= 3) {
                 var_v0 = 1;
             } else {
@@ -6600,6 +6601,7 @@ void render_menus(MenuItem* arg0) {
                     }
                     render_cursor_player(arg0, temp_a0, temp_t2);
                     n64kr_vehicle_select_draw(arg0->column, arg0->row, temp_a0); // N64KR HOOK
+                    n64kr_character_select_draw(arg0->column, arg0->row, temp_a0); // N64KR HOOK
                 }
                 break;
             case CHARACTER_SELECT_MENU_OK:
@@ -6838,7 +6840,7 @@ void render_menus(MenuItem* arg0) {
             case MENU_ITEM_TYPE_130:
                 if (arg0->state != 0) {
                     gDisplayListHead = render_menu_textures(
-                         gDisplayListHead, D_800E7D54[D_800EFD64[D_802874D8.unk1E]],
+                         gDisplayListHead, D_800E7D54[D_800EFD64[n64kr_char_hud(D_802874D8.unk1E)]] /* N64KR HOOK */,
                         arg0->column, arg0->row);
                     func_8009A7EC(arg0->D_8018DEE0_index, arg0->column, arg0->row, 0, arg0->param1);
                 }
@@ -7821,7 +7823,7 @@ void func_800A3A10(s8* arg0) {
     UNUSED s8* new_var;
 
     for (var_v0 = 0; var_v0 < 8; var_v0++) {
-        arg0[var_v0] = var_v0;
+        arg0[var_v0] = n64kr_gp_seed_character(var_v0); // N64KR HOOK: was var_v0 (assumed ids 0..7)
         for (var_a1 = var_v0; var_a1 > 0; var_a1--) {
             new_var = &arg0[var_a1];
             temp_a3 = arg0[var_a1 - 1];
@@ -12657,7 +12659,7 @@ void func_800AF270(MenuItem* arg0) {
 
     temp_v1 = arg0->type - 0x12C;
     sp30 = D_802874D8.unk1E;
-    temp_v0 = D_800EFD64[sp30];
+    temp_v0 = D_800EFD64[n64kr_char_hud(sp30)]; // N64KR HOOK
     switch (arg0->state) {
         case 0:
             thing = &D_800E7458[temp_v1];

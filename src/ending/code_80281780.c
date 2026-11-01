@@ -24,6 +24,7 @@
 #include "racing/memory.h"
 #include <string.h>
 #include "port/Game.h"
+#include "n64kr/character_select.h" // N64KR HOOK
 
 // For init podium ceremony
 #include "ceremony_and_credits.h"
@@ -65,7 +66,7 @@ void debug_switch_character_ceremony_cutscene(void) {
 s32 func_80281880(s32 arg0) {
     s32 i;
     for (i = 0; i < NUM_PLAYERS; i++) {
-        if (gCharacterIdByGPOverallRank[i] == gCharacterSelections[arg0]) {
+        if (gCharacterIdByGPOverallRank[i] == n64kr_human_character(arg0)) { // N64KR HOOK
             break;
         }
     }
@@ -80,17 +81,17 @@ void func_802818BC(void) {
 
     if (gPlayerCount != TWO_PLAYERS_SELECTED) {
         D_802874D8.unk1D = func_80281880(0);
-        D_802874D8.unk1E = gCharacterSelections[0];
+        D_802874D8.unk1E = n64kr_human_character(0); // N64KR HOOK
         return;
     }
     // weird pattern but if it matches it matches
     temp_v0 = sp1C = func_80281880(0);
     temp_v0_2 = func_80281880(1);
     if (sp1C < temp_v0_2) {
-        D_802874D8.unk1E = gCharacterSelections[0];
+        D_802874D8.unk1E = n64kr_human_character(0); // N64KR HOOK
         D_802874D8.unk1D = temp_v0;
     } else {
-        D_802874D8.unk1E = gCharacterSelections[1];
+        D_802874D8.unk1E = n64kr_human_character(1); // N64KR HOOK
         D_802874D8.unk1D = temp_v0_2;
     }
 }

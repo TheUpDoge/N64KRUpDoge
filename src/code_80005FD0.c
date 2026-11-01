@@ -177,7 +177,7 @@ s32 gGPCurrentRaceRankByPlayerIdDup[10];
 u16 gSelectedPathCount;
 u16 gNearestPathPointByPlayerId[12];
 s32 gNumPathPointsTraversed[10];
-s16 gGetPlayerByCharacterId[10];
+s16 gGetPlayerByCharacterId[N64KR_MAX_CHARACTERS]; // N64KR HOOK: was [10]
 s32 D_8016448C;
 TrackPathPoint* gCurrentTrackPath;
 f32 D_80164498[4];

@@ -7,11 +7,12 @@
 // behaviour it doesn't have of its own yet. Upstream code reads MK64 tables
 // through the accessors below instead of [player->characterId].
 //
-// SLICE-8: the registry holds exactly MK64's 8 characters, each mapped to
-// itself, so the game is unchanged. New characters (SLICE-9) add entries.
+// Ids 0..7 are MK64's 8 characters, each mapped to itself. Id 8 is reserved:
+// MK64 uses 8 as a "no character" marker (time trial records, minimap), so it
+// stays a pass-through entry. New characters start at 9 (SLICE-9: Diddy).
 //
-// Physics stats are not here: they come from the vehicle profile
-// (n64kr/vehicle_profile.h).
+// The vehicle profile decides physics (n64kr/vehicle_profile.h); `stats` only
+// names the stock stats a profile uses when it says "own character".
 
 #include <common_structs.h>
 
@@ -22,6 +23,9 @@ extern "C" {
 // Capacity for per-character bookkeeping arrays (GP points etc.).
 #define N64KR_MAX_CHARACTERS 16
 
+#define N64KR_CHAR_NONE 8 // MK64's "no character" marker
+#define N64KR_CHAR_DIDDY 9
+
 typedef struct {
     const char* name;
     // Stock MK64 character used for each category, 0..7.
@@ -30,6 +34,10 @@ typedef struct {
     s32 hud;     // portrait, minimap icons, name text
     s32 body;    // body size (gCharacterSize), particle colours, racer-vs-racer bump weight
     s32 ai;      // CPU behaviour (item strategy, heavyweight exceptions)
+    s32 stats;   // MK64 kart stats for the "own character" vehicle profile
+    // Kart sprite folder under textures/karts/ (a mod), laid out like the
+    // `sprites` character's frames; NULL = use that character's own sprites.
+    const char* kartFolder;
 } N64krCharacter;
 
 s32 n64kr_character_count(void);
@@ -42,6 +50,12 @@ s32 n64kr_char_sprites(s32 characterId);
 s32 n64kr_char_hud(s32 characterId);
 s32 n64kr_char_body(s32 characterId);
 s32 n64kr_char_ai(s32 characterId);
+s32 n64kr_char_stats(s32 characterId);
+
+// Kart sprite texture path for this character: the stock path from MK64's
+// tables (looked up with n64kr_char_sprites), moved to the character's own
+// kartFolder if it has one. The returned string stays valid.
+const char* n64kr_kart_texture(s32 characterId, const char* stockPath);
 
 #ifdef __cplusplus
 }

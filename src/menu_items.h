@@ -671,7 +671,7 @@ extern const char* sMenuTextureList[MENU_TEXTURE_BUFFER_MAX];
 extern u8* sTKMK00_LowResBuffer;
 extern u8* sGPPointsCopy;
 extern void* gSomeDLBuffer;
-extern s8 gGPPointsByCharacterId[8];
+extern s8 gGPPointsByCharacterId[]; // N64KR HOOK: sized N64KR_MAX_CHARACTERS
 extern s8 gCharacterIdByGPOverallRank[];
 extern s8 D_8018D9D8;
 extern s8 D_8018D9D9;

@@ -6,13 +6,19 @@ kart sprite frames, using SpaghettiKart's kart setup scene
 Run headless:
     blender.exe -b docs/MK64_Spaghetti_Adjusted_Kart_Setup.blend --python tools/n64kr/blender_dkr_racer_sprites.py -- <racer dir> <mod dir> <kart slot>
 e.g.
-    ... -- build/dkr_racers/diddycar build/x64/mods/n64kr-dkr-racer-test mario_kart
+    ... -- build/dkr_racers/diddycar build/x64/mods/n64kr-dkr-diddy diddy_kart
+Options: --preview (12 sample frames, no packaging), --package-only (package
+the frames already rendered in <racer dir>/frames).
 
 Output: <mod dir>/mods.toml + textures/karts/<slot>/<slot>_frameNNN_wheelW.png
 (frames 0-288, wheel spin 0-3) and <slot>_frameNNN.png (289-320, tumble), the
-names MK64's kart textures use (include/assets/textures/karts/*.h). A
-texture pack replaces that character's sprites. Built from ROM data: keep
-under build/, never commit.
+names MK64's kart textures use (include/assets/textures/karts/*.h).
+- A stock slot (mario_kart, ...) makes a texture pack over that character.
+- Any other slot is a new character's folder (N64KR registry kartFolder,
+  src/n64kr/character.c). SpaghettiKart only reads a PNG where a texture
+  resource already exists (BetterTextureFactory.cpp), so each PNG also gets a
+  small stub resource at its path without the extension.
+Built from ROM data: keep under build/, never commit.
 """
 import json
 import os
@@ -24,7 +30,8 @@ import mathutils
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 preview = "--preview" in argv  # render a few sample frames only, no packaging
-argv = [a for a in argv if a != "--preview"]
+package_only = "--package-only" in argv
+argv = [a for a in argv if a not in ("--preview", "--package-only")]
 if len(argv) != 3:
     sys.exit(__doc__)
 racer_dir, mod_dir, slot = os.path.abspath(argv[0]), os.path.abspath(argv[1]), argv[2]
@@ -278,20 +285,37 @@ if preview:
     print(f"[n64kr] preview frames in {render_dir} (fit scale {scale:.4f})")
     sys.exit(0)
 for variant in range(WHEEL_VARIANTS):
+    if package_only:
+        break
     last = 320 if variant == 0 else FRAMES_WITH_WHEELS.stop - 1
     for f in range(0, last + 1):
         render_frame(f, variant, os.path.join(render_dir, f"w{variant}_{f:03d}.png"))
     print(f"[n64kr] rendered wheel variant {variant}")
 
-# Package as a texture pack for the chosen kart slot.
+# Package for the chosen kart slot.
+STOCK_SLOTS = ("mario_kart", "luigi_kart", "yoshi_kart", "toad_kart", "donkeykong_kart", "wario_kart", "peach_kart",
+               "bowser_kart")
+# Texture resource (libultraship binary, version 0: 0x40-byte header "OTEX",
+# then type, width, height, data size). Never decoded: the PNG beside it wins.
+STUB = (b"\0\0\0\0" + b"XETO" + b"\0\0\0\0" + bytes.fromhex("efbeaddeefbeadde")).ljust(0x40, b"\0") + \
+    (4).to_bytes(4, "little") + (64).to_bytes(4, "little") + (64).to_bytes(4, "little") + bytes(4)
+
+
+def package(src, dst):
+    shutil.copyfile(src, dst + ".png")
+    if slot not in STOCK_SLOTS:
+        with open(dst, "wb") as fh:
+            fh.write(STUB)
+
+
 out_dir = os.path.join(mod_dir, "textures", "karts", slot)
 os.makedirs(out_dir, exist_ok=True)
 for f in FRAMES_WITH_WHEELS:
     for variant in range(WHEEL_VARIANTS):
-        shutil.copyfile(os.path.join(render_dir, f"w{variant}_{f:03d}.png"),
-                        os.path.join(out_dir, f"{slot}_frame{f:03d}_wheel{variant}.png"))
+        package(os.path.join(render_dir, f"w{variant}_{f:03d}.png"),
+                os.path.join(out_dir, f"{slot}_frame{f:03d}_wheel{variant}"))
 for f in TUMBLE_FRAMES:
-    shutil.copyfile(os.path.join(render_dir, f"w0_{f:03d}.png"), os.path.join(out_dir, f"{slot}_frame{f:03d}.png"))
+    package(os.path.join(render_dir, f"w0_{f:03d}.png"), os.path.join(out_dir, f"{slot}_frame{f:03d}"))
 with open(os.path.join(mod_dir, "mods.toml"), "w", newline="\n") as fh:
     fh.write(f'[mod]\nname = "{os.path.basename(mod_dir)}"\nversion = "0.1.0"\n')
 print(f"[n64kr] wrote {len(os.listdir(out_dir))} sprite frames to {out_dir} (fit scale {scale:.4f})")
