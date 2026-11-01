@@ -2,7 +2,7 @@
 
 Project: N64 Kart Racing (N64KR)
 Date: 2026-11-01
-Status: IN PROGRESS. Track builds and loads as a mod; first drive not yet tested.
+Status: DRIVABLE (user playtest 2026-11-01). Follow-up issues open.
 
 ## Converter: `tools/n64kr/dkr_level_to_gltf.py`
 Reads the user's own DKR ROM (USA 1.1 / v80 only, SHA-1 checked) and writes glTF 2.0 + PNG textures under `build/dkr_tracks/<track>/` (git-ignored; ROM data, never committed). The script holds no game data.
@@ -78,3 +78,12 @@ Output: `build/x64/mods/n64kr-dkr-ancient-lake/` (git-ignored; ROM data).
 ### Not done yet
 - Item boxes (DKR balloons) and zippers are in the JSON but not placed in the track (Fast64 HM64 leaves actors to the in-game editor).
 - Scale 0.5 untested in game; skybox, minimap, music use CustomTrack defaults.
+
+## First drive [VERIFIED: user playtest, 2026-11-01]
+- Ancient Lake loads, spawns and drives: user completed all three laps; "it actually drives and feels really good". So the ×0.5 scale, start-line placement, path/lap counting and collision work.
+
+### Issues found
+1. **Minimap is off.** Expected: CustomTrack uses Mario Raceway's minimap texture and default positions (`src/engine/tracks/CustomTrack.cpp` constructor). Needs a generated minimap and scene.json minimap settings.
+2. **Missing visuals.** [HYPOTHESIS] DKR scenery (trees, `Animation` objects, props) are separate object models placed by the object map, not level geometry, so the converter doesn't include them yet. Skybox is CustomTrack's default.
+3. **No pickups.** Item boxes (8 DKR `WeaponBalloon` positions) and zippers are in `<track>_mk64.json` but not placed.
+4. **Other racers overlap and look transparent.** Cause unknown; needs a closer description/screenshot. [HYPOTHESIS] draw-layer ordering of DKR's translucent water/decals, or every section using id 0xFF.
