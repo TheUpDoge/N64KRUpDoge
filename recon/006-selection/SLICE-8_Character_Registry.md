@@ -2,7 +2,7 @@
 
 Project: N64 Kart Racing (N64KR)
 Date: 2026-11-01
-Status: BUILT, not yet tested in game
+Status: PASSED (user playtest 2026-11-01); one unexplained intermittent crash on watch
 
 ## Goal
 Stop MK64's 8 characters being hard-wired. A racer's `characterId` now indexes the N64KR character registry; upstream code reads MK64's per-character tables and sound banks through registry accessors. The registry holds exactly MK64's 8, each mapped to itself, so the game must be unchanged. New characters (SLICE-9) become new entries.
@@ -45,3 +45,7 @@ Game identical to before: voices, kart sprites, portraits, minimap icons, names 
 - [VERIFIED: game log] Access violation 0.3 s after "Setup Race!" on Wario Stadium, in `Fast::Interpreter::ImportTextureI4` (`libultraship/src/fast/interpreter.cpp:878`) via `GfxSpTri1`: an I4 texture with a null data pointer. Two earlier races in the same session (same build) ran fine.
 - [VERIFIED: diff audit] All 133 SLICE-8 accessor calls take clean arguments (`player->characterId`, `gPlayers[playerId].characterId`, ...), and every accessor returns its input for ids 0..7, so SLICE-8 is a runtime no-op for the stock roster.
 - [HYPOTHESIS] Not caused by SLICE-8. Candidate: Enhancements → General → Disable Culling (enabled recently on advice for tree pop-in), which makes MK64 draw objects it normally skips; one may reference an unloaded I4 texture on Wario Stadium. Test: Wario Stadium with Disable Culling off, then on.
+- [VERIFIED: user playtest] Follow-up: with no settings changed, the user raced Wario Stadium and other tracks several times without a crash. **Not reproducible; cause unknown.** Kept open as a watch item: if it recurs, save `build/x64/logs/Spaghetti Kart.log` right after, note the track, mode, characters and whether Disable Culling is on.
+
+## In-game test [VERIFIED: user playtest]
+- Several races on several tracks, game behaves as before ("seems good now").
