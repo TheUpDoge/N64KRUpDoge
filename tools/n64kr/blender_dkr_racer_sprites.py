@@ -229,7 +229,7 @@ def update_wheels(spin, steer=0.0):
     for wh in wheels:
         d = cam_local - wh["pos"]
         if wh["steers"] and steer:
-            c, s_ = math.cos(steer), math.sin(steer)
+            c, s_ = math.cos(-steer), math.sin(-steer)  # wheel yawed by +steer (into the turn)
             d = mathutils.Vector((d.x * c - d.y * s_, d.x * s_ + d.y * c, d.z))
         angle = math.atan2(abs(d.x), math.hypot(d.y, d.z))  # 0 = head-on, pi/2 = side on
         images = wh["spins"][spin % len(wh["spins"])]
