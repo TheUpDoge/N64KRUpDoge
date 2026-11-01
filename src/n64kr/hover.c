@@ -2,6 +2,8 @@
 #include <defines.h>
 #include <math.h>
 
+#include "spawn_players.h"
+#include "port/Game.h"
 #include "n64kr/hover.h"
 #include "n64kr/vehicle_profile.h"
 
@@ -41,6 +43,12 @@ static f32 hover_unit_scale(const Player* player) {
     return cruiseSpeed / HOVER_DKR_TOP_SPEED;
 }
 
+// Water (SLICE-4). DKR lifts the craft by 0.75 of its depth per 30 Hz logic
+// frame (racer.c:2121-2124), so 0.375 per tick, and caps the climb out of
+// water at 4 DKR units/tick (racer.c:2145-2147).
+#define HOVER_BUOYANCY_PULL 0.375f
+#define HOVER_WATER_MAX_RISE 4.0f
+
 typedef struct {
     f32 throttle; // 0 .. 1
     f32 brake;    // 0 .. 1.2
@@ -53,6 +61,24 @@ void n64kr_hover_reset(s32 playerIndex) {
         sHover[playerIndex].throttle = 0.0f;
         sHover[playerIndex].brake = 0.0f;
     }
+}
+
+// MK64's water level doubles as the fall-out plane: lava on Bowser's Castle
+// and Big Donut, a void on Rainbow Road, Skyscraper and the rest. Only
+// these tracks have real water under it.
+static bool track_has_floatable_water(void) {
+    return IsKoopaTroopaBeach() || IsRoyalRaceway() || IsDkJungle() || IsBansheeBoardwalk() || IsSherbetLand();
+}
+
+// Height of water under the player, or false if there is none to float on.
+// gPlayerWaterLevel is refreshed at the end of each tick by
+// update_player_environment_and_hazard_state().
+static bool water_surface(s32 playerIndex, f32* level) {
+    if (!track_has_floatable_water()) {
+        return false;
+    }
+    *level = gPlayerWaterLevel[playerIndex];
+    return true;
 }
 
 static f32 dot3(const f32* a, const f32* b) {
@@ -78,6 +104,8 @@ void n64kr_hover_velocity_stage(Player* player, s32 playerIndex, u16 buttons, Ve
     f32 dragSq;
     f32 vertical;
     f32 unitScale;
+    f32 waterLevel;
+    f32 depth;
     s32 i;
 
     if ((playerIndex < 0) || (playerIndex >= N64KR_NUM_PLAYERS)) {
@@ -209,4 +237,17 @@ void n64kr_hover_velocity_stage(Player* player, s32 playerIndex, u16 buttons, Ve
     vertical -= HOVER_PLACEHOLDER_GRAVITY * HOVER_DT * (grounded ? 0.5f : 1.0f);
     vertical -= vertical * 0.025f * HOVER_DT;
     newVelocity[1] = vertical + ((velocity[1] * unitScale) - player->velocity[1]);
+
+    // Buoyancy: below the water surface the craft is pulled back up so its
+    // underside rides on the water. Staying afloat keeps MK64 from ever
+    // flagging it as submerged, so no Lakitu rescue.
+    if (water_surface(playerIndex, &waterLevel)) {
+        depth = (waterLevel + player->boundingBoxSize) - player->pos[1];
+        if (depth > 0.0f) {
+            newVelocity[1] = depth * HOVER_BUOYANCY_PULL;
+            if (newVelocity[1] > HOVER_WATER_MAX_RISE * unitScale) {
+                newVelocity[1] = HOVER_WATER_MAX_RISE * unitScale;
+            }
+        }
+    }
 }
