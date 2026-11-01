@@ -137,8 +137,8 @@ extern "C" s32 n64kr_voice_play_sound(u32 soundBits, const f32* position, u8 cam
     }
     float volume = 1.0f - (distance - kNear) / (kFar - kNear);
     volume = kGain * std::fmin(1.0f, std::fmax(0.0f, volume));
-    // Diagnostic (SLICE-9 voice check): one line per voice request.
-    SPDLOG_INFO("[n64kr] voice 0x{:08X} char {} slot {:X} camera {} distance {:.0f} volume {:.2f} -> {}", soundBits,
+    // One debug line per voice request (how the SLICE-9 distance bug was found).
+    SPDLOG_DEBUG("[n64kr] voice 0x{:08X} char {} slot {:X} camera {} distance {:.0f} volume {:.2f} -> {}", soundBits,
                 characterId, soundBits & 0xF, cameraId, distance, volume, volume > 0.0f ? "play" : "too far");
     if (volume <= 0.0f) {
         return 1;
@@ -147,6 +147,6 @@ extern "C" s32 n64kr_voice_play_sound(u32 soundBits, const f32* position, u8 cam
     voice.lastStart = now;
     GameEngine::Instance->gHMAS->Play(HMAS_SFX, clip->id, false);
     GameEngine::Instance->gHMAS->SetVolume(HMAS_SFX, volume);
-    SPDLOG_INFO("[n64kr] voice clip id {} playing {}", clip->id, GameEngine::Instance->gHMAS->IsPlaying(HMAS_SFX));
+    SPDLOG_DEBUG("[n64kr] voice clip id {} playing {}", clip->id, GameEngine::Instance->gHMAS->IsPlaying(HMAS_SFX));
     return 1;
 }
