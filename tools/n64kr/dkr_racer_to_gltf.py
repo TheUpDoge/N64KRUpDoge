@@ -92,15 +92,23 @@ def export(rom, object_name, out_root):
             continue
         part = headers[part_id]
         vo = v_off + attach_vertices[part_attach[k]] * dkr.VERTEX_SIZE
+        # Each sprite is one wheel-spin state (picked by the part's modelIndex);
+        # its frames are the wheel seen from 0 deg (head-on, frame 0) to 90 deg
+        # (side on, last frame) round from the vehicle's vertical plane
+        # (render_sprite_billboard in the decomp's src/camera.c).
         frames = []
-        for f, sprite_id in enumerate(part["models"]):
-            w, h, rgba, left, top = dkr.sprite_image(rom, sprite_id)
-            file = f"wheel_{part['name']}_{f}.png"
-            if file not in written:
-                with open(os.path.join(out_dir, file), "wb") as fh:
-                    fh.write(dkr.png_bytes(w, h, rgba))
-                written.add(file)
-            frames.append({"file": file, "w": w, "h": h, "left": left, "top": top})
+        for spin, sprite_id in enumerate(part["models"]):
+            sprite = rom.section("ASSET_SPRITES")[rom.table("ASSET_SPRITES_TABLE")[sprite_id]:]
+            angles = []
+            for angle in range(max(1, dkr.s16(sprite, 2))):
+                w, h, rgba, left, top = dkr.sprite_image(rom, sprite_id, angle)
+                file = f"wheel_{part['name']}_s{spin}_a{angle:02d}.png"
+                if file not in written:
+                    with open(os.path.join(out_dir, file), "wb") as fh:
+                        fh.write(dkr.png_bytes(w, h, rgba))
+                    written.add(file)
+                angles.append({"file": file, "w": w, "h": h, "left": left, "top": top})
+            frames.append(angles)
         wheels.append({"part": part["name"], "scale": part["scale"],
                        "position": [dkr.s16(m, vo), dkr.s16(m, vo + 2), dkr.s16(m, vo + 4)], "frames": frames})
 
@@ -108,6 +116,9 @@ def export(rom, object_name, out_root):
             "units": "DKR model units, Y up (same as the glTF)", "wheels": wheels}
     with open(os.path.join(out_dir, f"{object_name}_racer.json"), "w") as f:
         json.dump(info, f, indent=1)
+    for old in os.listdir(out_dir):  # drop single-frame wheel images from older exports
+        if old.startswith("wheel_") and old not in written:
+            os.remove(os.path.join(out_dir, old))
     print(f"Racer {object_name}: model {model_id}, {sum(len(c) for c in groups.values()) // 3} triangles, "
           f"{len(textures)} textures, {len(wheels)} wheels ({len(written)} wheel frame images).")
 

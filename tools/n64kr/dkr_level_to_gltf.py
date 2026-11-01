@@ -368,8 +368,8 @@ def fit_tmem(width, height, rgba):
     return tw, th, bytes(out)
 
 
-def sprite_image(rom, sprite_id):
-    """Frame 0 of a DKR sprite assembled from its 2D texture pieces.
+def sprite_image(rom, sprite_id, frame=0):
+    """One frame (default 0) of a DKR sprite assembled from its 2D texture pieces.
     Returns (width, height, rgba, left, top) where (left, top) is the image's
     top-left corner relative to the sprite anchor, in pixels with Y up.
     Piece placement as src/textures_sprites.c: x = posX - anchor.x,
@@ -379,7 +379,8 @@ def sprite_image(rom, sprite_id):
     a = sprites[stable[sprite_id]:stable[sprite_id + 1]]
     base, frames = s16(a, 0), s16(a, 2)
     anchor_x, anchor_y = s16(a, 4), s16(a, 6)
-    first, last = a[0x0C], a[0x0C + 1] if frames >= 1 else a[0x0C]
+    frame = max(0, min(frame, frames - 1)) if frames >= 1 else 0
+    first, last = a[0x0C + frame], a[0x0C + frame + 1] if frames >= 1 else a[0x0C]
     pieces = []
     for tid in range(base + first, base + last):
         raw = tex2d[ttable[tid]:ttable[tid + 1]]

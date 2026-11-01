@@ -82,8 +82,10 @@ def dkr_to_blender(p):
 # width -> the stock rims' x extent; wheel bottoms on the stock tyres' bottom;
 # wheelbase centres aligned.
 wheel_pts = [dkr_to_blender(w["position"]) for w in info["wheels"]]
-half_w = max(w["frames"][0]["w"] * w["scale"] for w in info["wheels"]) / 2
-half_h = max(w["frames"][0]["h"] * w["scale"] for w in info["wheels"]) / 2
+# frames[spin][angle]: the head-on frame (angle 0) gives the wheel's width
+# across the axle; the side-on frame (last) gives its height.
+half_w = max(w["frames"][0][0]["w"] * w["scale"] for w in info["wheels"]) / 2
+half_h = max(w["frames"][0][-1]["h"] * w["scale"] for w in info["wheels"]) / 2
 dkr_span = (max(p.x for p in wheel_pts) + half_w) - (min(p.x for p in wheel_pts) - half_w)
 scale = (wheel_hi.x - wheel_lo.x) / max(1e-6, dkr_span)
 dkr_centre = mathutils.Vector(((max(p.x for p in wheel_pts) + min(p.x for p in wheel_pts)) / 2,
@@ -94,6 +96,8 @@ offset = stock_centre - dkr_centre * scale
 
 
 def place(obj):
+    # New objects only get a valid matrix_world after a scene update.
+    bpy.context.view_layer.update()
     obj.matrix_world = mathutils.Matrix.Translation(offset) @ mathutils.Matrix.Scale(scale, 4) @ obj.matrix_world
     world = obj.matrix_world.copy()
     obj.parent = kart_root
@@ -138,18 +142,19 @@ for o in body:
         if mat is not None:
             unlit(mat)
 
-# Wheels: camera-facing quads with the vehicle part's sprite frame, sized
-# pixel x part scale (DKR model units), anchored like DKR sprites.
+# Wheels: camera-facing quads. Each DKR wheel sprite (one per spin state) has
+# frames for the wheel seen from 0 deg (head-on) to 90 deg (side on) round
+# from the vehicle's vertical plane; DKR picks the frame per draw from the
+# camera position and mirrors it when the camera is on the vehicle's -X side
+# (render_sprite_billboard, decomp src/camera.c). Quads are sized
+# pixel x part scale (DKR model units), one quad per frame size.
 camera = scene.camera
+reference = body[0]  # its local axes are the DKR model's (x lateral, +y forward, z up)
 wheel_images = {}
-wheel_mats = []
+wheels = []
 for k, wheel in enumerate(info["wheels"]):
-    frame0 = wheel["frames"][0]
-    w_units = frame0["w"] * wheel["scale"]
-    h_units = frame0["h"] * wheel["scale"]
     mesh = bpy.data.meshes.new(f"dkr_wheel{k}")
-    mesh.from_pydata([(-w_units / 2, -h_units / 2, 0), (w_units / 2, -h_units / 2, 0),
-                      (w_units / 2, h_units / 2, 0), (-w_units / 2, h_units / 2, 0)], [], [(0, 1, 2, 3)])
+    mesh.from_pydata([(-0.5, -0.5, 0), (0.5, -0.5, 0), (0.5, 0.5, 0), (-0.5, 0.5, 0)], [], [(0, 1, 2, 3)])
     uv = mesh.uv_layers.new()
     for loop, coord in zip(uv.data, ((0, 0), (1, 0), (1, 1), (0, 1))):
         loop.uv = coord
@@ -161,22 +166,43 @@ for k, wheel in enumerate(info["wheels"]):
     con.target = camera
     con.track_axis = "TRACK_Z"
     con.up_axis = "UP_Y"
-    frames = []
-    for fr in wheel["frames"]:
-        path = os.path.join(racer_dir, fr["file"])
-        if path not in wheel_images:
-            wheel_images[path] = bpy.data.images.load(path)
-        frames.append(wheel_images[path])
+    spins = []
+    for angles in wheel["frames"]:
+        images = []
+        for fr in angles:
+            path = os.path.join(racer_dir, fr["file"])
+            if path not in wheel_images:
+                wheel_images[path] = bpy.data.images.load(path)
+            images.append((wheel_images[path], fr["w"] * wheel["scale"], fr["h"] * wheel["scale"]))
+        spins.append(images)
     mat = bpy.data.materials.new(f"dkr_wheel{k}")
-    unlit(mat, frames[0])
+    unlit(mat, spins[0][0][0])
     mesh.materials.append(mat)
-    wheel_mats.append((mat, frames))
+    wheels.append({"obj": obj, "mat": mat, "spins": spins, "pos": dkr_to_blender(wheel["position"]),
+                   "base_scale": obj.scale.copy()})
 
 
-def set_wheel_variant(variant):
-    for mat, frames in wheel_mats:
-        tex = next(n for n in mat.node_tree.nodes if n.type == "TEX_IMAGE")
-        tex.image = frames[variant % len(frames)]
+def update_wheels(spin):
+    """Pick each wheel's sprite frame for the current camera view (call after frame_set)."""
+    import math
+
+    cam_local = reference.matrix_world.inverted() @ camera.matrix_world.translation
+    for wh in wheels:
+        d = cam_local - wh["pos"]
+        angle = math.atan2(abs(d.x), math.hypot(d.y, d.z))  # 0 = head-on, pi/2 = side on
+        images = wh["spins"][spin % len(wh["spins"])]
+        frame = min(len(images) - 1, int(angle / (math.pi / 2) * len(images)))
+        image, w_units, h_units = images[frame]
+        next(n for n in wh["mat"].node_tree.nodes if n.type == "TEX_IMAGE").image = image
+        mirror = -1.0 if d.x < 0 else 1.0
+        wh["obj"].scale = (wh["base_scale"].x * w_units * mirror, wh["base_scale"].y * h_units, wh["base_scale"].z)
+
+
+def render_frame(frame, spin, path):
+    scene.frame_set(frame)
+    update_wheels(spin)
+    scene.render.filepath = path
+    bpy.ops.render.render(write_still=True)
 
 
 # Render.
@@ -192,17 +218,13 @@ if preview:
     print(f"[n64kr] body world bbox at frame 0: {[round(v, 2) for v in lo]} .. {[round(v, 2) for v in hi]}; "
           f"stock {[round(v, 2) for v in target_lo]} .. {[round(v, 2) for v in target_hi]}")
     for f in (0, 10, 20, 35, 60, 100, 150, 200, 250, 288, 295, 310):
-        scene.frame_set(f)
-        scene.render.filepath = os.path.join(render_dir, f"preview_{f:03d}.png")
-        bpy.ops.render.render(write_still=True)
+        render_frame(f, 0, os.path.join(render_dir, f"preview_{f:03d}.png"))
     print(f"[n64kr] preview frames in {render_dir} (fit scale {scale:.4f})")
     sys.exit(0)
 for variant in range(WHEEL_VARIANTS):
-    set_wheel_variant(variant)
-    scene.frame_start = 0
-    scene.frame_end = 320 if variant == 0 else FRAMES_WITH_WHEELS.stop - 1
-    scene.render.filepath = os.path.join(render_dir, f"w{variant}_###")
-    bpy.ops.render.render(animation=True)
+    last = 320 if variant == 0 else FRAMES_WITH_WHEELS.stop - 1
+    for f in range(0, last + 1):
+        render_frame(f, variant, os.path.join(render_dir, f"w{variant}_{f:03d}.png"))
     print(f"[n64kr] rendered wheel variant {variant}")
 
 # Package as a texture pack for the chosen kart slot.
