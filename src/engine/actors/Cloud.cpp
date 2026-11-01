@@ -4,6 +4,7 @@
 #include "engine/Actor.h"
 #include "engine/World.h"
 #include "port/Game.h"
+#include "n64kr/vehicle_profile.h" // N64KR HOOK
 
 extern "C" {
 #include "macros.h"
@@ -65,8 +66,8 @@ void ACloud::Tick() {
     if (Timer > TimerLength) { // Time has expired, reset the actor and player
         PickedUp = false;
         if (_player) {
-            gKartHopInitialVelocityTable[_player->characterId] = OldHop; // reset back to normal
-            gKartGravityTable[_player->characterId] = OldGravity;
+            gKartHopInitialVelocityTable[n64kr_stats_id(_player)] = OldHop; // reset back to normal
+            gKartGravityTable[n64kr_stats_id(_player)] = OldGravity;
             _player = NULL; // Reset
         }
         Timer = 0;
@@ -94,12 +95,12 @@ void ACloud::Collision(Player* player, AActor* actor) {
             _player = player;
             PickedUp = true;
 
-            OldHop = gKartHopInitialVelocityTable[player->characterId];
-            OldGravity = gKartGravityTable[player->characterId];
+            OldHop = gKartHopInitialVelocityTable[n64kr_stats_id(player)];
+            OldGravity = gKartGravityTable[n64kr_stats_id(player)];
             // Hop height
-            gKartHopInitialVelocityTable[player->characterId] = Hop;
+            gKartHopInitialVelocityTable[n64kr_stats_id(player)] = Hop;
             // How strong gravity is
-            gKartGravityTable[player->characterId] = Gravity;
+            gKartGravityTable[n64kr_stats_id(player)] = Gravity;
         }
     }
 }

@@ -98,6 +98,10 @@ file(
   "src/mods/*.c"
   "src/mods/*.cpp"
   "src/mods/*.h"
+  # N64KR HOOK
+  "src/n64kr/*.c"
+  "src/n64kr/*.cpp"
+  "src/n64kr/*.h"
   "assets/code/*.c"
   "courses/*.c"
   "courses/*.h"

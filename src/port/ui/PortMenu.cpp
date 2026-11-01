@@ -394,6 +394,20 @@ void PortMenu::AddEnhancements() {
         .PreFunc([](WidgetInfo& info) { info.isHidden = !CVarGetInteger("gNoWallColision", 0); })
         .Options(FloatSliderOptions().Min(-50.0f).Max(50.0f).DefaultValue(0.0f).Tooltip(
             "When Disable Wall Collision are enable what is the minimal height you can get."));
+
+    // N64KR HOOK
+    static const std::unordered_map<int32_t, const char*> n64krProfileOptions = {
+        { 0, "Own character" }, { 1, "Mario" }, { 2, "Luigi" }, { 3, "Yoshi" }, { 4, "Toad" },
+        { 5, "DK" },            { 6, "Wario" }, { 7, "Peach" }, { 8, "Bowser" },
+    };
+    path = { "Enhancements", "N64KR", SECTION_COLUMN_1 };
+    AddSidebarEntry("Enhancements", "N64KR", 3);
+    AddWidget(path, "Player 1 Vehicle Profile", WIDGET_CVAR_COMBOBOX)
+        .CVar("gN64KR.P1VehicleProfile")
+        .Options(ComboboxOptions()
+                     .ComboMap(n64krProfileOptions)
+                     .DefaultIndex(0)
+                     .Tooltip("Which kart's physics Player 1 drives with. Applies from the next race start."));
 }
 
 #ifdef __SWITCH__

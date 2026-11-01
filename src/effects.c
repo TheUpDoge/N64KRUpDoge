@@ -18,6 +18,7 @@
 #include "spawn_players.h"
 #include "menu_items.h"
 #include "port/Game.h"
+#include "n64kr/vehicle_profile.h" // N64KR HOOK
 
 s32 D_8018D900[8];
 s16 D_8018D920[8];
@@ -197,7 +198,7 @@ void func_8008C528(Player* player, s8 arg1) {
     s32 temp_v1;
     clean_effect(player, arg1);
     func_8008C310(player);
-    temp_v1 = player->characterId;
+    temp_v1 = n64kr_stats_id(player);
     player->unk_0C2 = 0;
     player->kartHopJerk = D_800E37B0[temp_v1];
     player->kartHopAcceleration = 0.0f;
@@ -560,9 +561,9 @@ void func_8008D570(Player* player, s8 arg1) {
     player->effects |= 0x80000;
     player->effects &= ~0x10;
     player->triggers &= ~UNUSED_TRIGGER_0x1000;
-    player->kartHopJerk = D_800E3730[player->characterId];
+    player->kartHopJerk = D_800E3730[n64kr_stats_id(player)];
     player->kartHopAcceleration = 0.0f;
-    player->kartHopVelocity = (f32) D_800E3710[player->characterId];
+    player->kartHopVelocity = (f32) D_800E3710[n64kr_stats_id(player)];
     player->unk_0B2 = 1;
     player->unk_0C0 = 0;
     player->unk_07C = 0;
@@ -608,7 +609,7 @@ void func_8008D760(Player* player) {
     player->unk_0C0 = 0;
     player->rotation[1] = player->unk_0AE;
     player->effects &= 0xFFF7FFFF;
-    player->kartGravity = gKartGravityTable[player->characterId];
+    player->kartGravity = gKartGravityTable[n64kr_stats_id(player)];
     player->type &= ~PLAYER_UNKNOWN_0x80;
 }
 
@@ -619,9 +620,9 @@ void func_8008D7B0(Player* player, s8 arg1) {
     player->effects |= 0x800000;
     player->effects &= ~0x10;
     player->triggers &= ~UNUSED_TRIGGER_0x20000;
-    player->kartHopJerk = D_800E3770[player->characterId];
+    player->kartHopJerk = D_800E3770[n64kr_stats_id(player)];
     player->kartHopAcceleration = 0.0f;
-    player->kartHopVelocity = D_800E3750[player->characterId];
+    player->kartHopVelocity = D_800E3750[n64kr_stats_id(player)];
     D_8018D920[arg1] = 0;
     player->unk_0B2 = 4;
     player->unk_0C0 = 0;
@@ -662,7 +663,7 @@ void func_8008D97C(Player* player) {
     player->unk_0C0 = 0;
     player->rotation[1] = player->unk_0AE;
     player->effects &= 0xFF7FFFFF;
-    player->kartGravity = gKartGravityTable[player->characterId];
+    player->kartGravity = gKartGravityTable[n64kr_stats_id(player)];
 }
 
 void func_8008D9C0(Player* player) {
@@ -814,7 +815,7 @@ void apply_hit_effect(Player* player, s8 arg1) {
             player->unk_DB4.unk2 = 0;
             player->effects |= 0x08000000;
             player->size = 1.0f;
-            player->boundingBoxSize = gKartBoundingBoxSizeTable[player->characterId];
+            player->boundingBoxSize = gKartBoundingBoxSizeTable[n64kr_stats_id(player)];
             D_80165190[0][arg1] = 1;
             D_80165190[1][arg1] = 1;
             D_80165190[2][arg1] = 1;
@@ -903,7 +904,7 @@ void apply_lightning_effect(Player* player, s8 arg1) {
         if ((player->unk_0B0 >= 0) && (player->unk_0B0 < 0x1CC)) {
             move_f32_towards(&player->size, 0.7f, 0.1f);
             move_f32_towards(&player->boundingBoxSize,
-                             (f32) ((f64) gKartBoundingBoxSizeTable[player->characterId] * 0.9), 0.1f);
+                             (f32) ((f64) gKartBoundingBoxSizeTable[n64kr_stats_id(player)] * 0.9), 0.1f);
         } else {
             remove_lightning_effect(player, arg1);
             if (player->type & PLAYER_HUMAN) {
@@ -915,11 +916,11 @@ void apply_lightning_effect(Player* player, s8 arg1) {
 
 void remove_lightning_effect(Player* player, UNUSED s8 arg1) {
     move_f32_towards(&player->size, 1.0f, 0.1f);
-    move_f32_towards(&player->boundingBoxSize, gKartBoundingBoxSizeTable[player->characterId], 0.1f);
+    move_f32_towards(&player->boundingBoxSize, gKartBoundingBoxSizeTable[n64kr_stats_id(player)], 0.1f);
 
     player->effects &= ~LIGHTNING_EFFECT;
     player->size = 1.0f;
-    player->boundingBoxSize = gKartBoundingBoxSizeTable[player->characterId];
+    player->boundingBoxSize = gKartBoundingBoxSizeTable[n64kr_stats_id(player)];
     player->unk_DB4.unk10 = 3.0f;
     player->unk_DB4.unk2 = 0;
     player->effects |= 0x08000000;
@@ -1002,8 +1003,8 @@ void trigger_vertical_tumble(Player* player, s8 arg1) {
     player->kartHopJerk = 0.0f;
     player->kartHopAcceleration = 0.0f;
     player->kartHopVelocity = 0.0f;
-    player->kartHopJerk = D_800E3730[player->characterId];
-    player->kartHopVelocity = D_800E3710[player->characterId];
+    player->kartHopJerk = D_800E3730[n64kr_stats_id(player)];
+    player->kartHopVelocity = D_800E3710[n64kr_stats_id(player)];
     player->unk_236 = 4;
     player->unk_042 = 0;
     player->unk_0E0 = 0;
@@ -1110,8 +1111,8 @@ void trigger_high_tumble(Player* player, s8 arg1) {
     player->kartHopJerk = 0.0f;
     player->kartHopAcceleration = 0.0f;
     player->kartHopVelocity = 0.0f;
-    player->kartHopJerk = D_800E3730[player->characterId];
-    player->kartHopVelocity = D_800E3710[player->characterId];
+    player->kartHopJerk = D_800E3730[n64kr_stats_id(player)];
+    player->kartHopVelocity = D_800E3710[n64kr_stats_id(player)];
     player->unk_236 = 4;
     player->unk_042 = 0;
     player->unk_0E0 = 0;
@@ -1214,7 +1215,7 @@ void trigger_wood_ramp_boost(Player* player, s8 playerId) {
 }
 
 void apply_boost_ramp_wood_effect(Player* player) {
-    player->currentSpeed = gTopSpeedTable[0][player->characterId];
+    player->currentSpeed = gTopSpeedTable[0][n64kr_stats_id(player)];
 
     if ((player->surfaceType != BOOST_RAMP_WOOD) && ((player->effects & 8) != 8)) {
         move_f32_towards(&player->boostPower, 0, 1.0f);
@@ -1573,9 +1574,9 @@ void func_8008FDF4(Player* player, UNUSED s8 arg1) {
     clean_effect(player, arg1);
 
     player->effects &= ~0x10;
-    player->kartHopJerk = D_800E37F0[player->characterId];
+    player->kartHopJerk = D_800E37F0[n64kr_stats_id(player)];
     player->kartHopAcceleration = 0.0f;
-    player->kartHopVelocity = D_800E37D0[player->characterId];
+    player->kartHopVelocity = D_800E37D0[n64kr_stats_id(player)];
     player->triggers &= ~UNUSED_TRIGGER_0x10000;
     player->effects |= UNKNOWN_EFFECT_0x10000000;
 }
@@ -1998,7 +1999,7 @@ void func_80091298(Player* player, s8 arg1) {
                 player->unk_0C0 = 0;
                 player->unk_DB4.unkC = 3.0f;
                 player->kartProps &= ~UNUSED_0x800;
-                player->kartGravity = gKartGravityTable[player->characterId];
+                player->kartGravity = gKartGravityTable[n64kr_stats_id(player)];
                 player->unk_0D4[0] = 0;
                 player->type |= PLAYER_START_SEQUENCE;
                 player->speed = 0.0f;

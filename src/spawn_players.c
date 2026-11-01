@@ -28,6 +28,7 @@
 #include "effects.h"
 #include "decode.h"
 #include "port/Game.h"
+#include "n64kr/vehicle_profile.h" // N64KR HOOK
 
 f32 D_80165210[8];
 f32 D_80165230[8];
@@ -84,33 +85,34 @@ void spawn_player(Player* player, s8 playerIndex, f32 startingRow, f32 startingC
     player->type = PLAYER_INACTIVE;
     player->kartPropulsionStrength = 0;
     player->characterId = characterId;
+    n64kr_assign_vehicle_profile(player); // N64KR HOOK
     player->kartGraphics = 0;
-    player->kartFriction = gKartFrictionTable[player->characterId];
-    player->boundingBoxSize = gKartBoundingBoxSizeTable[player->characterId];
-    player->kartGravity = gKartGravityTable[player->characterId];
+    player->kartFriction = gKartFrictionTable[n64kr_stats_id(player)];
+    player->boundingBoxSize = gKartBoundingBoxSizeTable[n64kr_stats_id(player)];
+    player->kartGravity = gKartGravityTable[n64kr_stats_id(player)];
 
     switch (gModeSelection) {
         case GRAND_PRIX:
         case VERSUS:
-            player->unk_084 = D_800E2400[gCCSelection][player->characterId];
-            player->unk_088 = D_800E24B4[gCCSelection][player->characterId];
-            player->unk_210 = D_800E2568[gCCSelection][player->characterId];
-            player->topSpeed = gTopSpeedTable[gCCSelection][player->characterId];
+            player->unk_084 = D_800E2400[gCCSelection][n64kr_stats_id(player)];
+            player->unk_088 = D_800E24B4[gCCSelection][n64kr_stats_id(player)];
+            player->unk_210 = D_800E2568[gCCSelection][n64kr_stats_id(player)];
+            player->topSpeed = gTopSpeedTable[gCCSelection][n64kr_stats_id(player)];
             break;
 
         // Uses 100CC values
         case TIME_TRIALS:
-            player->unk_084 = D_800E2400[CC_100][player->characterId];
-            player->unk_088 = D_800E24B4[CC_100][player->characterId];
-            player->unk_210 = D_800E2568[CC_100][player->characterId];
-            player->topSpeed = gTopSpeedTable[CC_100][player->characterId];
+            player->unk_084 = D_800E2400[CC_100][n64kr_stats_id(player)];
+            player->unk_088 = D_800E24B4[CC_100][n64kr_stats_id(player)];
+            player->unk_210 = D_800E2568[CC_100][n64kr_stats_id(player)];
+            player->topSpeed = gTopSpeedTable[CC_100][n64kr_stats_id(player)];
             break;
 
         case BATTLE:
-            player->unk_084 = D_800E2400[CC_BATTLE][player->characterId];
-            player->unk_088 = D_800E24B4[CC_BATTLE][player->characterId];
-            player->unk_210 = D_800E2568[CC_BATTLE][player->characterId];
-            player->topSpeed = gTopSpeedTable[CC_BATTLE][player->characterId];
+            player->unk_084 = D_800E2400[CC_BATTLE][n64kr_stats_id(player)];
+            player->unk_088 = D_800E24B4[CC_BATTLE][n64kr_stats_id(player)];
+            player->unk_210 = D_800E2568[CC_BATTLE][n64kr_stats_id(player)];
+            player->topSpeed = gTopSpeedTable[CC_BATTLE][n64kr_stats_id(player)];
             break;
     }
     if (CVarGetInteger("gEnableCustomCC", 0) == 1) {
@@ -120,8 +122,8 @@ void spawn_player(Player* player, s8 playerIndex, f32 startingRow, f32 startingC
         f32 b;
 
 #define calc(table, field)                                                                      \
-    a = calc_a(50, table[CC_50][player->characterId], 150, table[CC_150][player->characterId]); \
-    b = calc_b(50, table[CC_50][player->characterId], a);                                       \
+    a = calc_a(50, table[CC_50][n64kr_stats_id(player)], 150, table[CC_150][n64kr_stats_id(player)]); \
+    b = calc_b(50, table[CC_50][n64kr_stats_id(player)], a);                                       \
     player->field = a * CVarGetFloat("gCustomCC", 150.0f) + b;
 
         calc(gTopSpeedTable, topSpeed);
