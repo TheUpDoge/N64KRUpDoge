@@ -14,6 +14,14 @@
 extern "C" {
 #endif
 
+// CVar: which DKR character's hovercraft stats to use (DKR Character enum,
+// 0 = Krunch ... 9 = Diddy). Only matters once real stats are loaded.
+#define N64KR_CVAR_HOVER_CHARACTER "gN64KR.HoverDkrCharacter"
+
+// True once n64kr_dkr_hover.txt (extracted from the user's DKR ROM) has
+// loaded; otherwise hover runs on placeholder stats.
+bool n64kr_hover_has_dkr_stats(void);
+
 // Clears a player's throttle/brake ramps. Called when a profile is assigned.
 void n64kr_hover_reset(s32 playerIndex);
 

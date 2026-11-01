@@ -31,7 +31,8 @@ typedef enum {
     N64KR_PROFILE_BOWSER,
     // SLICE-2 test vehicle: Mario's stats with N64KR_MOVEMENT_TEST_FLOATY.
     N64KR_PROFILE_TEST_FLOATY,
-    // SLICE-3: DKR-style hovercraft with placeholder stats (n64kr/hover.c).
+    // SLICE-3: DKR-style hovercraft (n64kr/hover.c); real DKR stats when
+    // n64kr_dkr_hover.txt is present, placeholders otherwise.
     // statsId still feeds MK64's bounding box, hop and steering tables.
     N64KR_PROFILE_HOVERCRAFT,
     N64KR_PROFILE_COUNT

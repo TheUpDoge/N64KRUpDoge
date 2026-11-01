@@ -16,7 +16,7 @@ static const N64krVehicleProfile sProfiles[N64KR_PROFILE_COUNT] = {
     { "Peach", PEACH, N64KR_MOVEMENT_GROUND },
     { "Bowser", BOWSER, N64KR_MOVEMENT_GROUND },
     { "Floaty test (Mario stats)", MARIO, N64KR_MOVEMENT_TEST_FLOATY },
-    { "Hovercraft (test stats)", MARIO, N64KR_MOVEMENT_HOVER },
+    { "Hovercraft (DKR)", MARIO, N64KR_MOVEMENT_HOVER },
 };
 
 // -1 = not assigned yet.

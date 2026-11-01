@@ -399,7 +399,7 @@ void PortMenu::AddEnhancements() {
     static const std::unordered_map<int32_t, const char*> n64krProfileOptions = {
         { 0, "Own character" }, { 1, "Mario" }, { 2, "Luigi" }, { 3, "Yoshi" }, { 4, "Toad" },
         { 5, "DK" },            { 6, "Wario" }, { 7, "Peach" }, { 8, "Bowser" },
-        { 9, "Floaty test (Mario stats)" }, { 10, "Hovercraft (test stats)" },
+        { 9, "Floaty test (Mario stats)" }, { 10, "Hovercraft (DKR)" },
     };
     path = { "Enhancements", "N64KR", SECTION_COLUMN_1 };
     AddSidebarEntry("Enhancements", "N64KR", 3);
@@ -409,6 +409,20 @@ void PortMenu::AddEnhancements() {
                      .ComboMap(n64krProfileOptions)
                      .DefaultIndex(0)
                      .Tooltip("Which kart's physics Player 1 drives with. Applies from the next race start."));
+
+    // DKR Character enum order.
+    static const std::unordered_map<int32_t, const char*> n64krHoverCharacterOptions = {
+        { 0, "Krunch" }, { 1, "Bumper" }, { 2, "Tiptup" },    { 3, "Conker" }, { 4, "Timber" },
+        { 5, "Banjo" },  { 6, "Drumstick" }, { 7, "Pipsy" }, { 8, "T.T." },   { 9, "Diddy" },
+    };
+    AddWidget(path, "Hovercraft DKR Stats", WIDGET_CVAR_COMBOBOX)
+        .CVar("gN64KR.HoverDkrCharacter")
+        .Options(ComboboxOptions()
+                     .ComboMap(n64krHoverCharacterOptions)
+                     .DefaultIndex(9)
+                     .Tooltip("Which DKR character's hovercraft stats the Hovercraft profile uses. Needs "
+                              "n64kr_dkr_hover.txt from tools/n64kr/extract_dkr_hover_stats.py; without it, "
+                              "placeholder stats are used."));
 }
 
 #ifdef __SWITCH__
