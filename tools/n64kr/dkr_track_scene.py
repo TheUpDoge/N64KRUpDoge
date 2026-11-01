@@ -148,6 +148,9 @@ def main():
     scene.setdefault("Fog", {"EnableFog": False})
     scene.setdefault("StaticMeshActors", None)
     scene["Actors"] = item_boxes(layout)
+    # DKR tracks have their own start banner; skip MK64's finish line arch
+    # (read by the N64KR hook in src/engine/editor/SceneManager.cpp).
+    scene["SpawnFinishline"] = False
 
     sky = layout.get("sky")
     if sky:

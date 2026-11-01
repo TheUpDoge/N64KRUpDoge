@@ -145,6 +145,11 @@ namespace TrackEditor {
         LoadActors(track, data);
         LoadStaticMeshActors(track, data);
         LoadTour(track, data);
+        // N64KR HOOK: tracks that bring their own start banner (converted DKR
+        // tracks) can turn off the MK64 finish line arch (RaceManager.cpp).
+        if (data.contains("SpawnFinishline") && data["SpawnFinishline"].is_boolean()) {
+            track->bSpawnFinishline = data["SpawnFinishline"].get<bool>();
+        }
         SPDLOG_INFO("[SceneManager] [LoadTrackDataFromJson] SceneFile Loaded!\n");
     }
 

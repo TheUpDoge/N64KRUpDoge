@@ -135,6 +135,21 @@ bpy.context.view_layer.objects.active = meshes[0]
 scene.bsdf_conv_all = True
 bpy.ops.object.convert_bsdf()
 
+# DKR draws many triangles double-sided (Triangle flag 0x40) and culls the
+# rest per triangle; with Fast64's default G_CULL_BACK, faces seen from behind
+# vanish and objects show through hills and walls. Draw both sides.
+for obj in meshes:
+    for mat in obj.data.materials:
+        if mat is not None and getattr(mat, "is_f3d", False):
+            mat.f3d_mat.rdp_settings.g_cull_back = False
+# Fast64 only writes settings that differ from the world defaults. With culling
+# on in the defaults, each material emits an explicit ClearGeometryMode
+# G_CULL_BACK (and its revert list restores it) instead of inheriting whatever
+# culling state the engine left set.
+from fast64.fast64_internal.utility import create_or_get_world  # noqa: E402
+
+create_or_get_world(scene).rdp_defaults.g_cull_back = True
+
 # ------------------------------------------------------- track root + path
 root = bpy.data.objects.new(f"{export_name}_root", None)
 scene.collection.objects.link(root)
