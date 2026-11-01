@@ -1,4 +1,5 @@
 #include <libultraship.h>
+#include "n64kr/character.h" // N64KR HOOK
 #include <macros.h>
 #include <mk64.h>
 #include <stubs.h>
@@ -1219,7 +1220,7 @@ void render_player_shadow(Player* player, s8 playerId, s8 screenId) {
         spCC[1] = player->unk_074 + 1.0f;
         spCC[2] = player->pos[2] + ((spB0 * coss(spC0)) - (spAC * sins(spC0)));
         set_transform_matrix(mtx, spB4, spCC, (spC0 + player->unk_042),
-                             gCharacterSize[player->characterId] * player->size * var_f2);
+                             gCharacterSize[n64kr_char_body(player->characterId)] * player->size * var_f2);
     } else {
         spC4[0] = player->slopeAccel;
         spC4[1] = spC0;
@@ -1229,7 +1230,7 @@ void render_player_shadow(Player* player, s8 playerId, s8 screenId) {
         spCC[1] = player->unk_074 + 1.0f;
         spCC[2] = player->pos[2] + ((spB0 * coss(spC0)) - (spAC * sins(spC0)));
         mtxf_translate_rotate(mtx, spCC, spC4);
-        mtxf_scale(mtx, gCharacterSize[player->characterId] * player->size);
+        mtxf_scale(mtx, gCharacterSize[n64kr_char_body(player->characterId)] * player->size);
     }
     convert_to_fixed_point_matrix(GetShadowMatrix(playerId + (screenId * 8)), mtx);
 
@@ -1280,7 +1281,7 @@ void render_player_shadow_credits(Player* player, s8 playerId, s8 screenId) {
     spCC[1] = gObjectList[indexObjectList1[playerId]].pos[1] + sp94[playerId];
 
     mtxf_translate_rotate(mtx, spCC, spC4);
-    mtxf_scale(mtx, gCharacterSize[player->characterId] * player->size);
+    mtxf_scale(mtx, gCharacterSize[n64kr_char_body(player->characterId)] * player->size);
     convert_to_fixed_point_matrix(GetShadowMatrix(playerId + (screenId * 8)), mtx);
 
     gSPMatrix(gDisplayListHead++, GetShadowMatrix(playerId + (screenId * 8)),
@@ -1364,7 +1365,7 @@ void render_kart(Player* player, s8 playerId, s8 screenId, s8 flipOffset) {
         sKartTexture = gEncodedKartTexture[D_801651D0[screenId][playerId]][screenId - 1][playerId - 4].unk_00;
     }
     mtxf_translate_rotate(mtx, sp154, sp14C);
-    mtxf_scale(mtx, gCharacterSize[player->characterId] * player->size);
+    mtxf_scale(mtx, gCharacterSize[n64kr_char_body(player->characterId)] * player->size);
     convert_to_fixed_point_matrix(GetKartMatrix(playerId + (screenId * 8)), mtx);
 
     if ((player->effects & BOO_EFFECT) == BOO_EFFECT) {
@@ -1478,7 +1479,7 @@ void render_ghost(Player* player, s8 playerId, s8 screenId, s8 flipOffset) {
     }
 
     mtxf_translate_rotate(mtx, spDC, spD4);
-    mtxf_scale(mtx, gCharacterSize[player->characterId] * player->size);
+    mtxf_scale(mtx, gCharacterSize[n64kr_char_body(player->characterId)] * player->size);
     convert_to_fixed_point_matrix(GetKartMatrix(playerId + (screenId * 8)), mtx);
 
     gSPMatrix(gDisplayListHead++, GetKartMatrix(playerId + (screenId * 8)),
@@ -1521,7 +1522,7 @@ void func_80025DE8(Player* player, s8 playerId, s8 screenId, s8 flipOffset) {
     FrameInterpolation_RecordOpenChild("player_boost", (playerId << 4) | screenId);
 
     mtxf_translate_rotate(mtx, sp9C, sp94);
-    mtxf_scale(mtx, gCharacterSize[player->characterId] * player->size);
+    mtxf_scale(mtx, gCharacterSize[n64kr_char_body(player->characterId)] * player->size);
     // convert_to_fixed_point_matrix(&gGfxPool->mtxEffect[gMatrixEffectCount], mtx);
 
     // gSPMatrix(gDisplayListHead++, VIRTUAL_TO_PHYSICAL(&gGfxPool->mtxEffect[gMatrixEffectCount]),
@@ -1570,7 +1571,7 @@ void render_player_ice_reflection(Player* player, s8 playerId, s8 screenId, s8 f
     FrameInterpolation_RecordOpenChild("player_reflection", (playerId << 4) | screenId);
 
     mtxf_translate_rotate(mtx, sp9C, sp94);
-    mtxf_scale(mtx, gCharacterSize[player->characterId] * player->size);
+    mtxf_scale(mtx, gCharacterSize[n64kr_char_body(player->characterId)] * player->size);
     // convert_to_fixed_point_matrix(&gGfxPool->mtxEffect[gMatrixEffectCount], mtx);
 
     // gSPMatrix(gDisplayListHead++, VIRTUAL_TO_PHYSICAL(&gGfxPool->mtxEffect[gMatrixEffectCount]),
@@ -1678,7 +1679,7 @@ void update_wheel_palette(Player* player, s8 playerId, s8 screenId, s8 arg3) {
     s16 groupId = gLastAnimGroupSelector[screenId][playerId];
     s16 tyreSpeed = player->tyreSpeed;
 
-    u8 character = player->characterId;
+    u8 character = n64kr_char_sprites(player->characterId);
     u32 wheel0 = 84*(8-groupId);
     u32 wheel1 = wheel_offset[groupId];
 

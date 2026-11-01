@@ -4,6 +4,7 @@
  */
 
 #include <libultraship.h>
+#include "n64kr/character.h" // N64KR HOOK
 #include <macros.h>
 #include <libultra/gbi.h>
 #include <mk64.h>
@@ -2310,7 +2311,7 @@ void func_8005CB60(s32 playerId, s32 lapCount) {
                     if (D_80165638 != playerHUD[playerId].someTimer1) {
                         D_80165658[0] = D_80165658[1] = 0;
                     }
-                    func_800C90F4(0U, (player->characterId * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x0D));
+                    func_800C90F4(0U, (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x0D));
                     D_80165638 = playerHUD[playerId].someTimer1;
                     D_80165658[lapCount - 1] = 1;
                     D_801657E3 = 1;
@@ -3992,7 +3993,7 @@ void func_80062C74(Player* player, s16 arg1, UNUSED s32 arg2, UNUSED s32 arg3) {
     if (player->particlePool0[arg1].unk_010 >= 3) {
         player->particlePool0[arg1].unk_010 = 0;
     }
-    func_80062B18(&sp40, &sp38, &sp3C, 0.0f, sp48[player->characterId],
+    func_80062B18(&sp40, &sp38, &sp3C, 0.0f, sp48[n64kr_char_body(player->characterId)],
                   (player->particlePool0[arg1].unk_01E * var_f6) + -5.5, -thing, -player->unk_206 * 2);
     player->particlePool0[arg1].pos[0] = player->pos[0] + sp40;
     sp38 = (player->pos[1] - player->boundingBoxSize) + sp38;
@@ -5230,7 +5231,7 @@ void render_player_speech_bubble(Player* player, s8 screenId, u8* texture, s8 ar
         sp74[1] = player->unk_048[screenId];
         sp74[2] = 0;
         sp7C[0] = player->pos[0] + (sins((0x4000 & 0xFFFFFFFF) - (player->rotation[1] + player->unk_0C0)) * arg4);
-        sp7C[1] = player->pos[1] + player->boundingBoxSize - sp54[player->characterId] - 2.0f;
+        sp7C[1] = player->pos[1] + player->boundingBoxSize - sp54[n64kr_char_body(player->characterId)] - 2.0f;
         sp7C[2] = player->pos[2] + (coss((0x4000 & 0xFFFFFFFF) - (player->rotation[1] + player->unk_0C0)) * arg4);
         func_800652D4(sp7C, sp74, player->particlePool2[arg3].scale * player->size);
         FrameInterpolation_RecordOpenChild("speech_bubble", ((player - gPlayerOne) << 4) | screenId);
@@ -5260,7 +5261,7 @@ void render_music_note(Player* player, s8 screenId, u8* texture, s8 arg3, f32 ar
         sp74[1] = player->unk_048[screenId];
         sp74[2] = 0;
         sp7C[0] = player->pos[0] + (sins((0x4000 & 0xFFFFFFFF) - (player->rotation[1] + player->unk_0C0)) * arg4);
-        sp7C[1] = player->pos[1] + player->boundingBoxSize - sp54[player->characterId] - 2.0f;
+        sp7C[1] = player->pos[1] + player->boundingBoxSize - sp54[n64kr_char_body(player->characterId)] - 2.0f;
         sp7C[2] = player->pos[2] + (coss((0x4000 & 0xFFFFFFFF) - (player->rotation[1] + player->unk_0C0)) * arg4);
         FrameInterpolation_RecordOpenChild("music_note", ((player - gPlayerOne) << 4) | screenId);
         func_800652D4(sp7C, sp74, player->particlePool2[arg3].scale * player->size * 0.8);
@@ -5730,7 +5731,7 @@ void func_8006A7C0(Player* player, f32 arg1, f32 arg2, s8 arg3, s8 arg4) {
             D_8018D830[arg3][arg4] = -1;
         }
     }
-    func_80062B18(&someX, &someY, &someZ, arg1, sp80[player->characterId] - D_8018D710[arg3][arg4],
+    func_80062B18(&someX, &someY, &someZ, arg1, sp80[n64kr_char_body(player->characterId)] - D_8018D710[arg3][arg4],
                   arg2 + -3.2 + (sp6C * 1), -D_8018D620[arg3][arg4], -player->unk_206 * 2);
     if ((gPlayerBalloonStatus[arg3][arg4] & 2) != 2) {
         gPlayerBalloonPosY[arg3][arg4] = (player->pos[1] - player->boundingBoxSize) + someY;
@@ -5772,12 +5773,12 @@ void render_battle_balloon(Player* player, s8 arg1, s16 arg2, s8 arg3) {
         MAKE_RGB(0x00, 0x00, 0x00), MAKE_RGB(0x00, 0x00, 0x00), MAKE_RGB(0x00, 0x00, 0x00), MAKE_RGB(0x00, 0x00, 0x00),
     };
 
-    primRed = (primColors[player->characterId] >> 0x10) & 0xFF;
-    primGreen = (primColors[player->characterId] >> 0x08) & 0xFF;
-    primBlue = (primColors[player->characterId] >> 0x00) & 0xFF;
-    envRed = (envColors[player->characterId] >> 0x10) & 0xFF;
-    envGreen = (envColors[player->characterId] >> 0x08) & 0xFF;
-    envBlue = (envColors[player->characterId] >> 0x00) & 0xFF;
+    primRed = (primColors[n64kr_char_body(player->characterId)] >> 0x10) & 0xFF;
+    primGreen = (primColors[n64kr_char_body(player->characterId)] >> 0x08) & 0xFF;
+    primBlue = (primColors[n64kr_char_body(player->characterId)] >> 0x00) & 0xFF;
+    envRed = (envColors[n64kr_char_body(player->characterId)] >> 0x10) & 0xFF;
+    envGreen = (envColors[n64kr_char_body(player->characterId)] >> 0x08) & 0xFF;
+    envBlue = (envColors[n64kr_char_body(player->characterId)] >> 0x00) & 0xFF;
     temp_t1 = (((player->unk_048[arg3] + player->rotation[1] + player->unk_0C0) & 0xFFFF) / 128);
     temp_t1 <<= 7;
     if (arg3 == arg1) {

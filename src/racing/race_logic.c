@@ -1,4 +1,5 @@
 #include <libultraship.h>
+#include "n64kr/character.h" // N64KR HOOK
 #include <stdio.h>
 #include <macros.h>
 #include <mk64.h>
@@ -1100,8 +1101,8 @@ void func_802903D8(Player* playerOne, Player* playerTwo) {
 
     f32 gFloatArray802B8790[] = { 1.2, 1.0, 0.9, 0.7, 2.0, 1.8, 0.9, 2.3 };
 
-    f32 sp24 = gFloatArray802B8790[playerOne->characterId];
-    f32 sp20 = gFloatArray802B8790[playerTwo->characterId];
+    f32 sp24 = gFloatArray802B8790[n64kr_char_body(playerOne->characterId)];
+    f32 sp20 = gFloatArray802B8790[n64kr_char_body(playerTwo->characterId)];
 
     sp60[0] = playerOne->pos[0] - playerTwo->pos[0];
     sp60[1] = (playerOne->pos[1] - playerOne->boundingBoxSize) - (playerTwo->pos[1] - playerTwo->boundingBoxSize);

@@ -1,4 +1,5 @@
 #include <libultraship.h>
+#include "n64kr/character.h" // N64KR HOOK
 #include <macros.h>
 #include <defines.h>
 #include <mk64.h>
@@ -498,7 +499,7 @@ void func_8002934C(Player* player, Camera* camera, s8 screenId, s8 playerId) {
     player->animFrameSelector[screenId] =
         (u16) ((((player->unk_048[screenId]) + player->rotation[1] + player->unk_0C0))) / 128;
 
-    temp_f2 = (gCharacterSize[player->characterId] * 18.0f) * player->size;
+    temp_f2 = (gCharacterSize[n64kr_char_body(player->characterId)] * 18.0f) * player->size;
     temp_f0 = player->unk_230 - player->unk_23C;
     if ((player->effects & 8) != 8) {
         if ((player->effects & LIGHTNING_EFFECT) == LIGHTNING_EFFECT) {
@@ -638,9 +639,9 @@ void func_80029B4C(Player* player, UNUSED f32 arg1, f32 arg2, UNUSED f32 arg3) {
     f32 var_f12;
 
     if ((player->effects & LIGHTNING_EFFECT) == LIGHTNING_EFFECT) {
-        var_f12 = 18.0f * ((((gCharacterSize[player->characterId] / 2)) * ((player->size) * 1.5)));
+        var_f12 = 18.0f * ((((gCharacterSize[n64kr_char_body(player->characterId)] / 2)) * ((player->size) * 1.5)));
     } else {
-        var_f12 = 18.0f * (gCharacterSize[player->characterId] / 2);
+        var_f12 = 18.0f * (gCharacterSize[n64kr_char_body(player->characterId)] / 2);
     }
 
     calculate_orientation_matrix(sp5C, 0.0f, 1.0f, 0.0f, (player->rotation[1] + player->unk_0C0));
@@ -701,7 +702,7 @@ void func_80029B4C(Player* player, UNUSED f32 arg1, f32 arg2, UNUSED f32 arg3) {
         d = (player->tyres[BACK_RIGHT].baseHeight + player->tyres[BACK_LEFT].baseHeight) / 2;
         move_f32_towards(&player->unk_1F8, d, 0.5f);
     }
-    temp_f2_3 = ((gCharacterSize[player->characterId] * 18.0f) + 1.0f) * player->size;
+    temp_f2_3 = ((gCharacterSize[n64kr_char_body(player->characterId)] * 18.0f) + 1.0f) * player->size;
     temp_f0_2 = player->unk_23C - player->unk_230;
     player->unk_206 = -func_802B7C40(temp_f0_2 / temp_f2_3);
     if (((player->lakituProps & HELD_BY_LAKITU) == HELD_BY_LAKITU) || (player->effects & 8)) {
@@ -749,9 +750,9 @@ void func_8002A194(Player* player, f32 x, f32 y, f32 z) {
 
   temp_v1 = -player->rotation[1] - player->unk_0C0;
   if ((player->effects & LIGHTNING_EFFECT) == LIGHTNING_EFFECT) {
-      var_f20 = (((gCharacterSize[player->characterId] * 18) / 2) * (player->size * 1.5)) - 1;
+      var_f20 = (((gCharacterSize[n64kr_char_body(player->characterId)] * 18) / 2) * (player->size * 1.5)) - 1;
   } else {
-      var_f20 = (((gCharacterSize[player->characterId] * 18) / 2) * player->size) - 1;
+      var_f20 = (((gCharacterSize[n64kr_char_body(player->characterId)] * 18) / 2) * player->size) - 1;
   }
 
   player->tyres[FRONT_LEFT].pos[2] = (coss(temp_v1 + 0x2000) * var_f20) + z;
@@ -788,7 +789,7 @@ void func_8002A194(Player* player, f32 x, f32 y, f32 z) {
   player->tyres[BACK_LEFT].surfaceType = player->surfaceType;
   player->tyres[FRONT_RIGHT].surfaceType = player->surfaceType;
   player->tyres[FRONT_LEFT].surfaceType = player->surfaceType;
-  var_f20 = (gCharacterSize[player->characterId] * 18) + 1;
+  var_f20 = (gCharacterSize[n64kr_char_body(player->characterId)] * 18) + 1;
   temp_f0 = (player->unk_23C - player->unk_230);
   player->unk_206 = -func_802B7C40(temp_f0 / var_f20);
   if ((player->effects & 8) != 8) {
@@ -861,7 +862,7 @@ void func_8002A704(Player* player, s8 arg1) {
     player->triggers &= ~START_BOOST_TRIGGER;
     if (((player->type & PLAYER_HUMAN) == PLAYER_HUMAN) &&
         ((player->type & PLAYER_INVISIBLE_OR_BOMB) != PLAYER_INVISIBLE_OR_BOMB)) {
-        func_800C90F4(0U, (player->characterId * 0x10) + 0x29008001);
+        func_800C90F4(0U, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008001);
         func_800C9060(arg1, 0x1900A40BU);
     }
     player->boostTimer = 0x0050;
@@ -1466,7 +1467,7 @@ void func_8002BF4C(Player* player, s8 arg1) {
                     player->effects |= 0x200000;
                     if ((player->type & PLAYER_INVISIBLE_OR_BOMB) != PLAYER_INVISIBLE_OR_BOMB) {
                         uselessAssignment = player->type & PLAYER_INVISIBLE_OR_BOMB;
-                        func_800C90F4(arg1, (player->characterId * 0x10) + 0x29008001);
+                        func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008001);
                     }
                     if ((player->type & PLAYER_INVISIBLE_OR_BOMB) != PLAYER_INVISIBLE_OR_BOMB) {
                         uselessAssignment = var_a2;

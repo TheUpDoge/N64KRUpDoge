@@ -1,4 +1,5 @@
 #include <libultraship.h>
+#include "n64kr/character.h" // N64KR HOOK
 #include <macros.h>
 #include <defines.h>
 #include <stubs.h>
@@ -2056,15 +2057,15 @@ void func_8000B140(s32 playerId) {
     }
 
     // Exclude heavyweights
-    if (player->characterId == WARIO) {
+    if (n64kr_char_ai(player->characterId) == WARIO) {
         return;
     }
 
-    if (player->characterId == BOWSER) {
+    if (n64kr_char_ai(player->characterId) == BOWSER) {
         return;
     }
 
-    if (player->characterId == DK) {
+    if (n64kr_char_ai(player->characterId) == DK) {
         return;
     }
 
@@ -7152,7 +7153,7 @@ void cpu_use_item_strategy(s32 playerId) {
             if ((gLapCountByPlayerId[playerId] > 0) &&
                 (gGPCurrentRaceRankByPlayerId[playerId] > gGPCurrentRaceRankByPlayerId[gBestRankedHumanPlayer]) &&
                 (gGPCurrentRaceRankByPlayerId[gBestRankedHumanPlayer] == FIRST_PLACE)) {
-                switch (player->characterId) {
+                switch (n64kr_char_ai(player->characterId)) {
                     case DK:
                         if (is_path_point_in_range(gNearestPathPointByPlayerId[playerId],
                                                    gNearestPathPointByPlayerId[gBestRankedHumanPlayer], 40, 2,
@@ -7349,7 +7350,7 @@ void cpu_use_item_strategy(s32 playerId) {
                     SHELL_ACTOR(actor)->state = MOVING_SHELL;
                     func_800C9060(SHELL_ACTOR(actor)->playerId, SOUND_ARG_LOAD(0x19, 0x00, 0x80, 0x04));
                     func_800C90F4(SHELL_ACTOR(actor)->playerId,
-                                  (player->characterId * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x00));
+                                  (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x00));
                     add_green_shell_in_unexpired_actor_list(CM_FindActorIndex(SHELL_ACTOR(actor)));
                 }   
                 else 

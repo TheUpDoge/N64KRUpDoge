@@ -1,4 +1,5 @@
 #include <libultraship.h>
+#include "n64kr/character.h" // N64KR HOOK
 #include <macros.h>
 #include "main.h"
 #include "buffers.h"
@@ -608,14 +609,14 @@ void load_kart_texture(Player* player, s8 playerId, s8 screenId, s8 screenId2, s
     if (((temp & 0x80) == 0x80) || ((temp & 0x40) == 0x40) || ((temp & 0x80000) == 0x80000) ||
         ((temp & 0x800000) == 0x800000) || ((temp & 0x20000) == 0x20000) || ((player->kartProps & UNUSED_0x800) != 0)) {
         if (player->animFrameSelector[screenId] != 0) {
-            osInvalDCache(&gEncodedKartTexture[index][screenId2][playerId], D_800DDEB0[player->characterId]);
+            osInvalDCache(&gEncodedKartTexture[index][screenId2][playerId], D_800DDEB0[n64kr_char_sprites(player->characterId)]);
             gEncodedKartTexture[index][screenId2][playerId].unk_00 =
-                (const char*) gKartTextureTable1[player->characterId][player->animGroupSelector[screenId]]
+                (const char*) gKartTextureTable1[n64kr_char_sprites(player->characterId)][player->animGroupSelector[screenId]]
                                                 [player->animFrameSelector[screenId]][wheelid];
         } else {
-            osInvalDCache(&gEncodedKartTexture[index][screenId2][playerId], D_800DDEB0[player->characterId]);
+            osInvalDCache(&gEncodedKartTexture[index][screenId2][playerId], D_800DDEB0[n64kr_char_sprites(player->characterId)]);
             gEncodedKartTexture[index][screenId2][playerId].unk_00 =
-                (const char*) gKartTextureTable0[player->characterId][player->animGroupSelector[screenId]]
+                (const char*) gKartTextureTable0[n64kr_char_sprites(player->characterId)][player->animGroupSelector[screenId]]
                                                 [player->animFrameSelector[screenId]][wheelid];
         }
     } else if (((temp & 0x400) == 0x400) || ((temp & 0x01000000) == 0x01000000) ||
@@ -623,11 +624,11 @@ void load_kart_texture(Player* player, s8 playerId, s8 screenId, s8 screenId2, s
         osInvalDCache(&gEncodedKartTexture[index][screenId2][playerId], 0x780U);
 // player->unk_0A8 >> 8 converts an 8.8 fixed-point animation frame to a whole number.
         gEncodedKartTexture[index][screenId2][playerId].unk_00 =
-            (const char*) gKartTextureTumbles[player->characterId][player->unk_0A8 >> 8];
+            (const char*) gKartTextureTumbles[n64kr_char_sprites(player->characterId)][player->unk_0A8 >> 8];
     } else {
-        osInvalDCache(&gEncodedKartTexture[index][screenId2][playerId], D_800DDEB0[player->characterId]);
+        osInvalDCache(&gEncodedKartTexture[index][screenId2][playerId], D_800DDEB0[n64kr_char_sprites(player->characterId)]);
         gEncodedKartTexture[index][screenId2][playerId].unk_00 =
-            (const char*) gKartTextureTable0[player->characterId][player->animGroupSelector[screenId]]
+            (const char*) gKartTextureTable0[n64kr_char_sprites(player->characterId)][player->animGroupSelector[screenId]]
                                             [player->animFrameSelector[screenId]][wheelid];
     }
 }
@@ -640,14 +641,14 @@ void load_kart_texture_non_blocking(Player* player, s8 arg1, s8 arg2, s8 arg3, s
     if (((temp & 0x80) == 0x80) || ((temp & 0x40) == 0x40) || ((temp & 0x80000) == 0x80000) ||
         ((temp & 0x800000) == 0x800000) || ((temp & 0x20000) == 0x20000) || ((player->kartProps & UNUSED_0x800) != 0)) {
         if (player->animFrameSelector[arg2] != 0) {
-            osInvalDCache(&gEncodedKartTexture[arg4][arg3][arg1], D_800DDEB0[player->characterId]);
+            osInvalDCache(&gEncodedKartTexture[arg4][arg3][arg1], D_800DDEB0[n64kr_char_sprites(player->characterId)]);
             gEncodedKartTexture[arg4][arg3][arg1].unk_00 =
-                (const char*) gKartTextureTable1[player->characterId][player->animGroupSelector[arg2]]
+                (const char*) gKartTextureTable1[n64kr_char_sprites(player->characterId)][player->animGroupSelector[arg2]]
                                                 [player->animFrameSelector[arg2]][wheelid];
         } else {
-            osInvalDCache(&gEncodedKartTexture[arg4][arg3][arg1], D_800DDEB0[player->characterId]);
+            osInvalDCache(&gEncodedKartTexture[arg4][arg3][arg1], D_800DDEB0[n64kr_char_sprites(player->characterId)]);
             gEncodedKartTexture[arg4][arg3][arg1].unk_00 =
-                (const char*) gKartTextureTable0[player->characterId][player->animGroupSelector[arg2]]
+                (const char*) gKartTextureTable0[n64kr_char_sprites(player->characterId)][player->animGroupSelector[arg2]]
                                                 [player->animFrameSelector[arg2]][wheelid];
         }
     } else if (((temp & 0x400) == 0x400) || ((temp & 0x01000000) == 0x01000000) ||
@@ -655,11 +656,11 @@ void load_kart_texture_non_blocking(Player* player, s8 arg1, s8 arg2, s8 arg3, s
         osInvalDCache(&gEncodedKartTexture[arg4][arg3][arg1], 0x780);
 // player->unk_0A8 >> 8 converts an 8.8 fixed-point animation frame to a whole number.
         gEncodedKartTexture[arg4][arg3][arg1].unk_00 =
-            (const char*) gKartTextureTumbles[player->characterId][player->unk_0A8 >> 8];
+            (const char*) gKartTextureTumbles[n64kr_char_sprites(player->characterId)][player->unk_0A8 >> 8];
     } else {
-        osInvalDCache(&gEncodedKartTexture[arg4][arg3][arg1], D_800DDEB0[player->characterId]);
+        osInvalDCache(&gEncodedKartTexture[arg4][arg3][arg1], D_800DDEB0[n64kr_char_sprites(player->characterId)]);
         gEncodedKartTexture[arg4][arg3][arg1].unk_00 =
-            (const char*) gKartTextureTable0[player->characterId][player->animGroupSelector[arg2]]
+            (const char*) gKartTextureTable0[n64kr_char_sprites(player->characterId)][player->animGroupSelector[arg2]]
                                             [player->animFrameSelector[arg2]][wheelid];
     }
 }
@@ -674,15 +675,15 @@ void load_kart_palette(Player* player, s8 playerId, s8 screenId, s8 buffer) {
         case SCREEN_MODE_2P_SPLITSCREEN_VERTICAL:
             osInvalDCache(temp_s0, sizeof(struct_D_802F1F80));
 
-            size = ResourceGetTexSizeByName((const char*) gKartPalettes[player->characterId]);
-            asset = (u8*) LOAD_ASSET(gKartPalettes[player->characterId]);
+            size = ResourceGetTexSizeByName((const char*) gKartPalettes[n64kr_char_sprites(player->characterId)]);
+            asset = (u8*) LOAD_ASSET(gKartPalettes[n64kr_char_sprites(player->characterId)]);
             memcpy(&temp_s0->kart_palette[0], asset, size);
             break;
         case SCREEN_MODE_3P_4P_SPLITSCREEN: // Code identical to above
             osInvalDCache(temp_s0, sizeof(struct_D_802F1F80));
 
-            size = ResourceGetTexSizeByName((const char*) gKartPalettes[player->characterId]);
-            asset = (u8*) LOAD_ASSET(gKartPalettes[player->characterId]);
+            size = ResourceGetTexSizeByName((const char*) gKartPalettes[n64kr_char_sprites(player->characterId)]);
+            asset = (u8*) LOAD_ASSET(gKartPalettes[n64kr_char_sprites(player->characterId)]);
             memcpy(&temp_s0->kart_palette[0], asset, size);
             break;
     }
