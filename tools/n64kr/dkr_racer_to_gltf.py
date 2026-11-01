@@ -109,7 +109,9 @@ def export(rom, object_name, out_root):
                     written.add(file)
                 angles.append({"file": file, "w": w, "h": h, "left": left, "top": top})
             frames.append(angles)
-        wheels.append({"part": part["name"], "scale": part["scale"],
+        # DKR steers attach points 2 and 3 (y_rotation = stick x * 100, src/racer.c
+        # update_car_wheels); 0 and 1 stay straight.
+        wheels.append({"part": part["name"], "scale": part["scale"], "steers": k >= 2,
                        "position": [dkr.s16(m, vo), dkr.s16(m, vo + 2), dkr.s16(m, vo + 4)], "frames": frames})
 
     info = {"object": object_name, "model": model_id, "object_scale": hd["scale"],

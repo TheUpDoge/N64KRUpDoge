@@ -179,16 +179,37 @@ for k, wheel in enumerate(info["wheels"]):
     unlit(mat, spins[0][0][0])
     mesh.materials.append(mat)
     wheels.append({"obj": obj, "mat": mat, "spins": spins, "pos": dkr_to_blender(wheel["position"]),
-                   "base_scale": obj.scale.copy()})
+                   "base_scale": obj.scale.copy(), "steers": wheel.get("steers", False)})
 
 
-def update_wheels(spin):
-    """Pick each wheel's sprite frame for the current camera view (call after frame_set)."""
+# Steering per sprite frame. In the setup scene, frames 0-188 are 9 blocks of
+# 21 where the kart turns 3 deg per frame relative to the camera and Mario's
+# arms steer into the turn (his pose repeats every 21 frames); frames 189+ keep
+# him straight. DKR turns the front wheels by stick x * 100 (racer.c); full
+# lock here is stick 70 = 7000/65536 of a turn.
+STEER_BLOCK = 21
+STEERING_FRAMES = range(0, 189)
+MAX_STEER = 7000 / 65536 * 2 * 3.141592653589793
+
+
+def steer_for_frame(frame):
+    if frame not in STEERING_FRAMES:
+        return 0.0
+    return MAX_STEER * (frame % STEER_BLOCK) / (STEER_BLOCK - 1)
+
+
+def update_wheels(spin, steer=0.0):
+    """Pick each wheel's sprite frame for the current camera view (call after
+    frame_set). Front (steering) wheels see the camera rotated by the steering
+    angle, like DKR rotating the camera offset by the wheel's own yaw."""
     import math
 
     cam_local = reference.matrix_world.inverted() @ camera.matrix_world.translation
     for wh in wheels:
         d = cam_local - wh["pos"]
+        if wh["steers"] and steer:
+            c, s_ = math.cos(-steer), math.sin(-steer)
+            d = mathutils.Vector((d.x * c - d.y * s_, d.x * s_ + d.y * c, d.z))
         angle = math.atan2(abs(d.x), math.hypot(d.y, d.z))  # 0 = head-on, pi/2 = side on
         images = wh["spins"][spin % len(wh["spins"])]
         frame = min(len(images) - 1, int(angle / (math.pi / 2) * len(images)))
@@ -200,7 +221,7 @@ def update_wheels(spin):
 
 def render_frame(frame, spin, path):
     scene.frame_set(frame)
-    update_wheels(spin)
+    update_wheels(spin, steer_for_frame(frame))
     scene.render.filepath = path
     bpy.ops.render.render(write_still=True)
 
