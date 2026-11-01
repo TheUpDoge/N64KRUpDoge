@@ -2,7 +2,7 @@
 
 Project: N64 Kart Racing (N64KR)
 Date: 2026-11-01
-Status: IN PROGRESS. Converter done and checked; Blender/Fast64 step next.
+Status: IN PROGRESS. Track builds and loads as a mod; first drive not yet tested.
 
 ## Converter: `tools/n64kr/dkr_level_to_gltf.py`
 Reads the user's own DKR ROM (USA 1.1 / v80 only, SHA-1 checked) and writes glTF 2.0 + PNG textures under `build/dkr_tracks/<track>/` (git-ignored; ROM data, never committed). The script holds no game data.
@@ -45,3 +45,36 @@ A mod folder/archive with `scene.json` (props, minimap, actors, environment, rea
 - Work out the DKR → MK64 scale (compare road widths / kart sizes).
 - In Blender: import the glTF, scale to MK64 size, set up Track Root, surfaces, path, spawn; export.
 - **[HYPOTHESIS]** Later, a direct exporter (DKR data → `scene.json` + `data_track_sections` + display lists, path from DKR checkpoints) could skip Blender and convert every DKR track automatically.
+
+## Automated pipeline (2026-11-01)
+1. `python -I tools/n64kr/dkr_level_to_gltf.py "<DKR .z64>" ancient_lake build/dkr_tracks --mk64`
+2. `blender.exe -b --python tools/n64kr/blender_dkr_track.py -- build/dkr_tracks/ancient_lake_mk64 build/x64/mods ancient_lake`
+
+Output: `build/x64/mods/n64kr-dkr-ancient-lake/` (git-ignored; ROM data).
+
+### DKR level objects [VERIFIED: DKR decomp + probe]
+- Level header (section 23, table 22; 200 bytes): `geometry` @0x34, collectables map @0x36, main object map @0xBA (`src/game.c:555` → `init_track` → `track_spawn_objects`).
+- Object map (section 21, table 20): DKR-compressed; u32 byte size, entries from offset 16 (`gObjectMap` is `s32 *`, spawn list = `gObjectMap + 4`); entry length = `byte1 & 0x3F`, object id = `byte0 | (byte1 & 0x80) << 1`, mapped through the translation table (section 35) to an object header (internal name at 0x60).
+- Ancient Lake: 33 `checkpoint` (18 unique non-alt indices), 8 `setuppoint`, 8 `WeaponBalloon`, 2 `GroundZipper`, plus scenery, coins, camera controls, AI nodes.
+- `LevelObjectEntry_Checkpoint`: index @0x09, angleY @0x0A, isAltCheckpoint @0x17, vehicleType @0x1A. `LevelObjectEntry_SetupPoint`: racerIndex @0x08, angleY @0x0A (`include/level_object_entries.h`).
+
+### MK64 layout (`--mk64`)
+- MK64 builds the start grid from path point 0: karts at x ±20, z +30..+170 behind it, racing towards −Z (`src/spawn_players.c` `spawn_and_set_player_spawns`).
+- So: start line = 20 MK64 units ahead of DKR's front grid row (racers 0+1), towards checkpoint 0; rotate so that direction is −Z; translate to origin; scale ×0.5 [HYPOTHESIS: matches the hover speed calibration, DKR 12 → MK64 5.9 units/tick].
+- Path: start line + checkpoints in index order, closed Catmull-Rom loop every 20 units, Y snapped to the floor below. Ancient Lake: 470 points. Written with start grid / item boxes / zippers to `<track>_mk64.json`.
+- Surfaces from the DKR texture's `surfaceType` (TextureInfo byte 7): default→ASPHALT, grass→GRASS, sand→SAND_OFFROAD, zip pad→BOOST_RAMP_ASPHALT, stone→DIRT_OFFROAD, water→WET_SAND, frozen water→ICE, snow→SNOW; invisible wall (17) and `RENDER_HIDDEN` batches → CLIP_DOUBLE_SIDED_WALL + DRAW_INVISIBLE; `RENDER_NO_COLLISION` → CLIP_NONE; transparent/water → DRAW_TRANSLUCENT. Stored as glTF material extras.
+
+### Blender script (`tools/n64kr/blender_dkr_track.py`) [VERIFIED: runs headless, export FINISHED]
+- Import glTF, weld duplicate vertices, split by material, set per-object `hm64_mk64_surface_type` / `clip_type` / `draw_layer` from material extras.
+- `Col`/`Alpha` corner attributes = sRGB→linear of the imported colours, because Fast64 gamma-corrects on export (`f3d/f3d_writer.py` `getLoopColor`).
+- glTF importer puts a vertex-colour multiply before Base Color; the script links the image node directly so `object.convert_bsdf` works, with presets `vertex_colored_texture` / `vertex_colored_texture_transparent`.
+- Track Root empty + Bezier path (`TRACK_PATH_1`), `scene.fast64.mk64.scale = 1` (geometry already in MK64 units), `scene.mk64_export_course`. Saves the `.blend` for hand edits.
+- Export check: `data_paths` 471 points starting `0,0,0` towards −Z; `data_track_sections` 19 sections with the expected surface / clip / draw layer.
+
+### Game [VERIFIED: game log]
+- `ModManager`: "Loaded mod: n64kr-dkr-ancient-lake", archive `./mods/n64kr-dkr-ancient-lake` added.
+- Custom tracks are picked from the start-screen debug menu: Developer → Debug Mode (`gEnableDebugMode`; `src/menus.c:1875`), then the COURSE row cycles registered tracks (`TrackBrowser_NextTrack`).
+
+### Not done yet
+- Item boxes (DKR balloons) and zippers are in the JSON but not placed in the track (Fast64 HM64 leaves actors to the in-game editor).
+- Scale 0.5 untested in game; skybox, minimap, music use CustomTrack defaults.

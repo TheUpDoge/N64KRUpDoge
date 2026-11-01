@@ -7,6 +7,12 @@ SpaghettiKart custom track (recon/005-content-merge/SLICE-6_First_DKR_Track.md).
 Usage (from the repo root):
     python -I tools/n64kr/dkr_level_to_gltf.py "<DKR .z64>" --list
     python -I tools/n64kr/dkr_level_to_gltf.py "<DKR .z64>" ancient_lake build/dkr_tracks
+    python -I tools/n64kr/dkr_level_to_gltf.py "<DKR .z64>" ancient_lake build/dkr_tracks --mk64
+
+--mk64 lays the track out for SpaghettiKart: checkpoint 0 at the origin,
+racing towards -Z, scaled to MK64 size, materials tagged with MK64 surface /
+collision / draw layer (glTF material extras), and <track>_mk64.json with a
+path through DKR's checkpoints, the start grid and item box positions.
 
 Format notes (DKR decomp a5eb080):
 - Asset lookup table: u32 count, then one u32 start offset per section,
@@ -36,8 +42,15 @@ SUPPORTED = {
 SECTION_INDEX = {
     "ASSET_TEXTURES_3D": 2,
     "ASSET_TEXTURES_3D_TABLE": 3,
+    "ASSET_LEVEL_OBJECT_MAPS_TABLE": 20,
+    "ASSET_LEVEL_OBJECT_MAPS": 21,
+    "ASSET_LEVEL_HEADERS_TABLE": 22,
+    "ASSET_LEVEL_HEADERS": 23,
     "ASSET_LEVEL_MODELS_TABLE": 26,
     "ASSET_LEVEL_MODELS": 27,
+    "ASSET_OBJECT_HEADERS_TABLE": 33,
+    "ASSET_OBJECTS": 34,
+    "ASSET_LEVEL_OBJECT_TRANSLATION_TABLE": 35,
 }
 
 # Level model names in v80 table order (decomp asset JSON LevelModel entries,
@@ -181,7 +194,188 @@ def png_bytes(width, height, rgba):
 
 # ---------------------------------------------------------------- level model
 
-def convert(rom, name, out_dir):
+# ---------------------------------------------------------------- MK64 mode
+
+# DKR SurfaceType (include/enums.h) -> MK64 surface name as Fast64 spells it.
+DKR_TO_MK64_SURFACE = {
+    0: "ASPHALT",              # SURFACE_DEFAULT (track)
+    1: "GRASS",                # SURFACE_GRASS
+    2: "SAND_OFFROAD",         # SURFACE_SAND
+    3: "BOOST_RAMP_ASPHALT",   # SURFACE_ZIP_PAD
+    4: "DIRT_OFFROAD",         # SURFACE_STONE (DKR slows racers on stone)
+    10: "ICE",                 # SURFACE_FROZEN_WATER
+    11: "WET_SAND",            # SURFACE_WATER_CALM
+    13: "SNOW",                # SURFACE_SNOW
+    14: "WET_SAND",            # SURFACE_WATER_WAVY
+    15: "WET_SAND",            # SURFACE_WATER_UNK_F
+}
+DKR_SURFACE_INVIS_WALL = 17
+
+# DKR is roughly twice MK64's scale: hover calibration maps DKR top speed
+# 12 units/tick to MK64 cruise 5.9 (recon/004-hover/SLICE-5_DKR_Stats.md).
+DKR_TO_MK64_SCALE = 0.5
+# Path point spacing in MK64 units (Mario Raceway: ~600 points per lap).
+PATH_SPACING = 20.0
+# MK64 units between DKR's front grid row and the start line (path point 0).
+START_LINE_AHEAD = 20.0
+
+
+def object_names(rom):
+    objs = rom.section("ASSET_OBJECTS")
+    table = rom.table("ASSET_OBJECT_HEADERS_TABLE")
+    names = []
+    for i in range(len(table) - 1):
+        header = objs[table[i]:table[i + 1]]
+        names.append(header[0x60:0x70].split(bytes(1))[0].decode("ascii", "replace") if len(header) >= 0x70 else "")
+    return names
+
+
+def level_objects(rom, model_index):
+    """Checkpoints, start grid, item balloons and zippers for the first race
+    level whose header uses this model (src/objects.c track_spawn_objects)."""
+    headers = rom.section("ASSET_LEVEL_HEADERS")
+    htable = rom.table("ASSET_LEVEL_HEADERS_TABLE")
+    header = None
+    for i in range(len(htable) - 1):
+        h = headers[htable[i]:htable[i + 1]]
+        if len(h) >= 0xBC and s16(h, 0x34) == model_index and h[0x4B] > 0:
+            header = h
+            break
+    if header is None:
+        sys.exit("No race level header uses this model.")
+    map_ids = (s16(header, 0xBA), s16(header, 0x36))  # main objects, collectables
+
+    trans_raw = rom.section("ASSET_LEVEL_OBJECT_TRANSLATION_TABLE")
+    trans = [s16(trans_raw, i) for i in range(0, len(trans_raw) - 1, 2)]
+    names = object_names(rom)
+    maps = rom.section("ASSET_LEVEL_OBJECT_MAPS")
+    mtable = rom.table("ASSET_LEVEL_OBJECT_MAPS_TABLE")
+    found = {"checkpoint": [], "setuppoint": [], "WeaponBalloon": [], "GroundZipper": []}
+    for map_id in map_ids:
+        data = dkr_inflate(maps[mtable[map_id]:mtable[map_id + 1]])
+        # u32 byte size, then entries from offset 16 (gObjectMap is s32 *,
+        # spawn list starts at gObjectMap + 4).
+        size, pos = u32(data, 0), 16
+        while pos < 16 + size:
+            length = data[pos + 1] & 0x3F
+            if length == 0:
+                break
+            object_id = data[pos] | ((data[pos + 1] & 0x80) << 1)
+            name = names[trans[object_id]] if object_id < len(trans) and 0 <= trans[object_id] < len(names) else ""
+            if name in found:
+                entry = {"x": s16(data, pos + 2), "y": s16(data, pos + 4), "z": s16(data, pos + 6)}
+                if name == "checkpoint":
+                    # LevelObjectEntry_Checkpoint (include/level_object_entries.h)
+                    entry.update(index=data[pos + 9], alt=data[pos + 0x17], vehicle=struct.unpack_from("b", data, pos + 0x1A)[0])
+                elif name == "setuppoint":
+                    entry.update(racer=data[pos + 8], angle=data[pos + 0xA] * 256)
+                found[name].append(entry)
+            pos += length
+    return found
+
+
+def triangle_floor(tris, x, z, y_above):
+    """Highest triangle surface at (x, z) below y_above, or None."""
+    best = None
+    for (ax, ay, az), (bx, by, bz), (cx, cy, cz) in tris:
+        d = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz)
+        if abs(d) < 1e-9:
+            continue
+        w0 = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / d
+        w1 = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / d
+        w2 = 1 - w0 - w1
+        if w0 < -1e-6 or w1 < -1e-6 or w2 < -1e-6:
+            continue
+        y = w0 * ay + w1 * by + w2 * cy
+        if y <= y_above and (best is None or y > best):
+            best = y
+    return best
+
+
+def catmull_rom_loop(points, spacing):
+    out = []
+    n = len(points)
+    for i in range(n):
+        p0, p1, p2, p3 = points[i - 1], points[i], points[(i + 1) % n], points[(i + 2) % n]
+        seg = sum((p2[k] - p1[k]) ** 2 for k in range(3)) ** 0.5
+        steps = max(1, int(seg / spacing))
+        for s in range(steps):
+            t = s / steps
+            t2, t3 = t * t, t * t * t
+            out.append(tuple(0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2
+                                    + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3) for k in range(3)))
+    return out
+
+
+def mk64_layout(objects):
+    """Transform that puts the start line at the origin, racing towards -Z
+    (MK64 grids karts behind path point 0 at +Z: src/spawn_players.c
+    spawn_and_set_player_spawns), scaled to MK64 size. Returns the transform
+    and the path gates in DKR coordinates: start line, then the checkpoints."""
+    import math
+
+    cps = [c for c in objects["checkpoint"] if c["alt"] == 0]
+    by_index = {}
+    for c in sorted(cps, key=lambda c: c["vehicle"] != 0):
+        by_index.setdefault(c["index"], c)
+    ordered = [by_index[i] for i in sorted(by_index)]
+    grid = sorted(objects["setuppoint"], key=lambda e: e["racer"])
+    if len(ordered) < 3 or len(grid) < 2:
+        sys.exit("Not enough checkpoints / start positions to build a path.")
+    # Start line: just ahead of the front grid row (racers 0 and 1), towards checkpoint 0.
+    front = {k: (grid[0][k] + grid[1][k]) / 2.0 for k in ("x", "y", "z")}
+    fx, fz = ordered[0]["x"] - front["x"], ordered[0]["z"] - front["z"]
+    length = math.hypot(fx, fz)
+    ahead = (START_LINE_AHEAD / DKR_TO_MK64_SCALE) / length
+    start = {"x": front["x"] + fx * ahead, "y": front["y"], "z": front["z"] + fz * ahead}
+    angle = math.atan2(-fx, -fz)
+    ca, sa = math.cos(angle), math.sin(angle)
+
+    def transform(x, y, z):
+        x, y, z = x - start["x"], y - start["y"], z - start["z"]
+        return ((x * ca - z * sa) * DKR_TO_MK64_SCALE, y * DKR_TO_MK64_SCALE, (x * sa + z * ca) * DKR_TO_MK64_SCALE)
+
+    return transform, [start] + ordered
+
+
+def write_mk64_layout(out_dir, name, transform, ordered, objects, floor_tris):
+    gates = [transform(c["x"], c["y"], c["z"]) for c in ordered]
+    path = []
+    for x, y, z in catmull_rom_loop(gates, PATH_SPACING):
+        floor = triangle_floor(floor_tris, x, z, y + 40.0)
+        path.append([round(x, 2), round(floor if floor is not None else y, 2), round(z, 2)])
+    # Path point 0 at the origin exactly (SpaghettiKart docs/tracks/trackoverview.md).
+    oy = path[0][1]
+    path = [[p[0], round(p[1] - oy, 2), p[2]] for p in path]
+    floor_offset = -oy
+
+    def place(entries):
+        out = []
+        for e in entries:
+            x, y, z = transform(e["x"], e["y"], e["z"])
+            out.append([round(x, 2), round(y + floor_offset, 2), round(z, 2)])
+        return out
+
+    layout = {
+        "track": name,
+        "units": "MK64 (N64 coordinates, Y up). Path point 0 at origin, racing towards -Z.",
+        "scale_from_dkr": DKR_TO_MK64_SCALE,
+        "y_offset": floor_offset,
+        "path": path,
+        "checkpoints": place(ordered[1:]),
+        "start_grid": place(sorted(objects["setuppoint"], key=lambda e: e["racer"])),
+        "item_boxes": place(objects["WeaponBalloon"]),
+        "zippers": place(objects["GroundZipper"]),
+    }
+    with open(os.path.join(out_dir, f"{name}_mk64.json"), "w") as f:
+        json.dump(layout, f, indent=1)
+    grid_z = [p[2] for p in layout["start_grid"]]
+    print(f"MK64 layout: {len(path)} path points, {len(ordered) - 1} checkpoints, start grid z {min(grid_z):.0f}..{max(grid_z):.0f} "
+          f"(should be > 0, behind the line), {len(layout['item_boxes'])} item boxes.")
+    return floor_offset
+
+
+def convert(rom, name, out_dir, mk64=False):
     if name not in LEVEL_MODELS:
         sys.exit(f"Unknown track '{name}'. Use --list.")
     models = rom.section("ASSET_LEVEL_MODELS")
@@ -194,7 +388,8 @@ def convert(rom, name, out_dir):
     textures = []
     for t in range(num_textures):
         o = tex_off + t * 8
-        textures.append({"id": u32(data, o) & 0x7FFF, "w": data[o + 4], "h": data[o + 5]})
+        textures.append({"id": u32(data, o) & 0x7FFF, "w": data[o + 4], "h": data[o + 5],
+                         "surface": struct.unpack_from("b", data, o + 7)[0]})
 
     # (texture index or None, flags category) -> list of corner tuples
     groups = {}
@@ -227,6 +422,18 @@ def convert(rom, name, out_dir):
                     corners.append((x, y, z, r, g, bl, a, u, v))
 
     os.makedirs(os.path.join(out_dir, "textures"), exist_ok=True)
+    if mk64:
+        objects = level_objects(rom, index)
+        transform, ordered = mk64_layout(objects)
+        for key, corners in groups.items():
+            groups[key] = [transform(c[0], c[1], c[2]) + tuple(c[3:]) for c in corners]
+        floor_tris = []
+        for key, corners in groups.items():
+            if key[1] == "visible" and not key[3]:
+                floor_tris += [(corners[i][:3], corners[i + 1][:3], corners[i + 2][:3]) for i in range(0, len(corners), 3)]
+        y_offset = write_mk64_layout(out_dir, name, transform, ordered, objects, floor_tris)
+        for key, corners in groups.items():
+            groups[key] = [(c[0], c[1] + y_offset, c[2]) + tuple(c[3:]) for c in corners]
     tex3d = rom.section("ASSET_TEXTURES_3D")
     tex3d_table = rom.table("ASSET_TEXTURES_3D_TABLE")
     images, samplers, gl_textures, materials, material_index = [], [], [], [], {}
@@ -260,6 +467,15 @@ def convert(rom, name, out_dir):
                    "doubleSided": True}
             if tex_index is not None:
                 mat["pbrMetallicRoughness"]["baseColorTexture"] = {"index": tex_index}
+            surface = textures[tex_index]["surface"] if tex_index is not None else 0
+            if category == "hidden" or surface == DKR_SURFACE_INVIS_WALL:
+                mk64_extras = {"mk64_surface": "SURFACE_DEFAULT", "mk64_clip": "CLIP_DOUBLE_SIDED_WALL",
+                               "mk64_draw": "DRAW_INVISIBLE"}
+            else:
+                mk64_extras = {"mk64_surface": DKR_TO_MK64_SURFACE.get(surface, "ASPHALT"),
+                               "mk64_clip": "CLIP_NONE" if no_collision else "CLIP_DEFAULT",
+                               "mk64_draw": "DRAW_TRANSLUCENT" if (transparent or water) else "DRAW_OPAQUE"}
+            mat["extras"] = dict(mk64_extras, dkr_surface=surface)
             if transparent or water:
                 mat["alphaMode"] = "BLEND"
             elif tex_index is not None and texture_slot[tex_index][2] in (0, 1, 4, 5, 6):
@@ -323,6 +539,8 @@ def convert(rom, name, out_dir):
 
 def main():
     args = sys.argv[1:]
+    mk64 = "--mk64" in args
+    args = [a for a in args if a != "--mk64"]
     if len(args) >= 2 and args[1] == "--list":
         print("\n".join(LEVEL_MODELS))
         return
@@ -331,8 +549,8 @@ def main():
     rom = Rom(args[0])
     if len(rom.table("ASSET_LEVEL_MODELS_TABLE")) != len(LEVEL_MODELS):
         sys.exit("Level model table size does not match this ROM.")
-    out_dir = os.path.join(args[2], args[1])
-    convert(rom, args[1], out_dir)
+    out_dir = os.path.join(args[2], args[1] + ("_mk64" if mk64 else ""))
+    convert(rom, args[1], out_dir, mk64)
 
 
 if __name__ == "__main__":
