@@ -7350,7 +7350,7 @@ void cpu_use_item_strategy(s32 playerId) {
                     SHELL_ACTOR(actor)->state = MOVING_SHELL;
                     func_800C9060(SHELL_ACTOR(actor)->playerId, SOUND_ARG_LOAD(0x19, 0x00, 0x80, 0x04));
                     func_800C90F4(SHELL_ACTOR(actor)->playerId,
-                                  (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x00));
+                                  (n64kr_char_voice_line(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x00));
                     add_green_shell_in_unexpired_actor_list(CM_FindActorIndex(SHELL_ACTOR(actor)));
                 }   
                 else 

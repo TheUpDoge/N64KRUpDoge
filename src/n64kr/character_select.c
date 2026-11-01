@@ -47,6 +47,13 @@ s32 n64kr_human_character(s32 playerIdx) {
     return (sAlternate[playerIdx] >= 0) ? sAlternate[playerIdx] : gCharacterSelections[playerIdx];
 }
 
+s32 n64kr_select_voice(s32 playerIdx, s32 stockId) {
+    if ((playerIdx < 0) || (playerIdx >= N64KR_MAX_HUMANS) || (sAlternate[playerIdx] < 0)) {
+        return stockId;
+    }
+    return n64kr_char_voice_line(sAlternate[playerIdx]);
+}
+
 u16 n64kr_spawn_character(s32 playerIndex, u16 characterId, s32 playerType) {
     // Only a human racer spawned as their own stock selection; the podium
     // ceremony spawns everyone as CPUs with final ids already in place.

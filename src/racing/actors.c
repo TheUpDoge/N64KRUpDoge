@@ -610,7 +610,7 @@ void evaluate_collision_player_palm_trees(Player* player) {
             if ((player->effects & STAR_EFFECT) != 0) {
                 func_800C98B8(player->pos, player->velocity, SOUND_ARG_LOAD(0x19, 0x01, 0x80, 0x10));
                 func_800C90F4((u8) (player - gPlayerOne),
-                              (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x0D));
+                              (n64kr_char_voice_line(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x0D));
                 data->someId |= 0x400;
             }
             if ((player->type & PLAYER_INVISIBLE_OR_BOMB) == 0) {
@@ -1481,7 +1481,7 @@ bool collision_mario_sign(Player* player, struct Actor* marioRacewaySign) {
                 marioRacewaySign->flags |= 0x400;
                 func_800C98B8(player->pos, player->velocity, SOUND_ARG_LOAD(0x19, 0x01, 0x80, 0x10));
                 func_800C90F4(player - gPlayerOne,
-                              (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x0D));
+                              (n64kr_char_voice_line(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x0D));
             } else if ((player->type & PLAYER_INVISIBLE_OR_BOMB) == 0) {
                 func_800C9060(player - gPlayerOne, SOUND_ARG_LOAD(0x19, 0x00, 0x70, 0x1A));
             }
@@ -1499,7 +1499,7 @@ bool collision_piranha_plant(Player* player, struct PiranhaPlant* plant) {
                 plant->flags |= 0x400;
                 func_800C98B8(player->pos, player->velocity, SOUND_ARG_LOAD(0x19, 0x01, 0xA2, 0x4A));
                 func_800C90F4(player - gPlayerOne,
-                              (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x0D));
+                              (n64kr_char_voice_line(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x0D));
             } else if ((player->type & PLAYER_INVISIBLE_OR_BOMB) == 0) {
                 func_800C9060(player - gPlayerOne, SOUND_ARG_LOAD(0x19, 0x00, 0xA0, 0x52));
             }
@@ -1556,7 +1556,7 @@ bool collision_yoshi_egg(Player* player, struct YoshiValleyEgg* egg) {
             egg->flags |= 0x400;
             egg->pathCenter[1] = 8.0f;
             func_800C98B8(player->pos, player->velocity, SOUND_ARG_LOAD(0x19, 0x01, 0x80, 0x10));
-            func_800C90F4(player - gPlayerOne, (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x0D));
+            func_800C90F4(player - gPlayerOne, (n64kr_char_voice_line(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x0D));
         } else {
             trigger_squish(player, player - gPlayerOne);
             if ((gModeSelection == TIME_TRIALS) && ((player->type & PLAYER_CPU) == 0)) {
@@ -1621,7 +1621,7 @@ bool collision_tree(Player* player, struct Actor* actor) {
         if (player->effects & STAR_EFFECT) {
             actor->flags |= 0x400;
             func_800C98B8(player->pos, player->velocity, SOUND_ARG_LOAD(0x19, 0x01, 0x80, 0x10));
-            func_800C90F4(player - gPlayerOne, (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x0D));
+            func_800C90F4(player - gPlayerOne, (n64kr_char_voice_line(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x0D));
             return true;
         }
         if (!(player->type & PLAYER_INVISIBLE_OR_BOMB)) {
@@ -1995,13 +1995,13 @@ void evaluate_collision_between_player_actor(Player* player, struct Actor* actor
             if (owner->type & PLAYER_HUMAN) {
                 if (actor->flags & 0xF) {
                     if (temp_lo != temp_v1) {
-                        func_800C90F4(temp_v1, (n64kr_char_voice(owner->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x06));
+                        func_800C90F4(temp_v1, (n64kr_char_voice_line(owner->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x06));
                     }
                 } else {
                     temp_f0 = actor->pos[0] - owner->pos[0];
                     temp_f2 = actor->pos[2] - owner->pos[2];
                     if ((((temp_f0 * temp_f0) + (temp_f2 * temp_f2)) < 360000.0f) && (temp_lo != temp_v1)) {
-                        func_800C90F4(temp_v1, (n64kr_char_voice(owner->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x06));
+                        func_800C90F4(temp_v1, (n64kr_char_voice_line(owner->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x06));
                     }
                 }
             }
@@ -2023,7 +2023,7 @@ void evaluate_collision_between_player_actor(Player* player, struct Actor* actor
             func_800C98B8(player->pos, player->velocity, SOUND_ARG_LOAD(0x19, 0x01, 0x80, 0x10));
             owner = &gPlayers[temp_v1];
             if ((owner->type & PLAYER_HUMAN) && (temp_lo != temp_v1)) {
-                func_800C90F4(temp_v1, (n64kr_char_voice(owner->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x06));
+                func_800C90F4(temp_v1, (n64kr_char_voice_line(owner->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x06));
             }
             destroy_destructable_actor(actor);
             break;
@@ -2042,7 +2042,7 @@ void evaluate_collision_between_player_actor(Player* player, struct Actor* actor
             }
             owner = &gPlayers[temp_v1];
             if ((owner->type & PLAYER_HUMAN) && (temp_lo != temp_v1)) {
-                func_800C90F4(temp_v1, (n64kr_char_voice(owner->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x06));
+                func_800C90F4(temp_v1, (n64kr_char_voice_line(owner->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x06));
             }
             if (temp_lo == actor->unk_04) {
                 destroy_destructable_actor(actor);
@@ -2067,7 +2067,7 @@ void evaluate_collision_between_player_actor(Player* player, struct Actor* actor
             }
             owner = &gPlayers[temp_v1];
             if ((owner->type & PLAYER_HUMAN) && (temp_lo != temp_v1)) {
-                func_800C90F4(temp_v1, (n64kr_char_voice(owner->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x06));
+                func_800C90F4(temp_v1, (n64kr_char_voice_line(owner->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x06));
             }
             destroy_destructable_actor(actor);
             break;
@@ -2127,13 +2127,13 @@ void evaluate_collision_between_player_actor(Player* player, struct Actor* actor
             if (owner->type & PLAYER_HUMAN) {
                 if (actor->flags & 0xF) {
                     if (temp_lo != temp_v1) {
-                        func_800C90F4(temp_v1, (n64kr_char_voice(owner->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x06));
+                        func_800C90F4(temp_v1, (n64kr_char_voice_line(owner->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x06));
                     }
                 } else {
                     temp_f0 = actor->pos[0] - owner->pos[0];
                     temp_f2 = actor->pos[2] - owner->pos[2];
                     if ((((temp_f0 * temp_f0) + (temp_f2 * temp_f2)) < 360000.0f) && (temp_lo != temp_v1)) {
-                        func_800C90F4(temp_v1, (n64kr_char_voice(owner->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x06));
+                        func_800C90F4(temp_v1, (n64kr_char_voice_line(owner->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x06));
                     }
                 }
                 if (actor->state == 0) {

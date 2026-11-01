@@ -42,6 +42,9 @@ typedef struct {
     // common_texture_portrait_<hudName>, ..._minimap_kart_<hudName>,
     // ..._minimap_<hudName>, from a mod); NULL = the `hud` character's.
     const char* hudName;
+    // Own voice clips (sound/n64kr/<voiceName>/*.wav from a mod, played by
+    // n64kr/voice.cpp); NULL = MK64 voice lines of the `voice` character.
+    const char* voiceName;
 } N64krCharacter;
 
 s32 n64kr_character_count(void);
@@ -50,6 +53,10 @@ const N64krCharacter* n64kr_get_character(s32 characterId);
 // Stock MK64 character id to use for each category. Ids outside the registry
 // pass through unchanged (MK64 uses 8 as a "no character" marker in places).
 s32 n64kr_char_voice(s32 characterId);
+// Voice index for voice lines (`index * 0x10 + SOUND_ARG_LOAD(0x29, 0x00, 0x80,
+// slot)`): the `voice` character for stock voices, the character's own id
+// (>= 9) for an own voice, which n64kr_voice_play_sound catches in play_sound.
+s32 n64kr_char_voice_line(s32 characterId);
 s32 n64kr_char_sprites(s32 characterId);
 s32 n64kr_char_hud(s32 characterId);
 s32 n64kr_char_body(s32 characterId);

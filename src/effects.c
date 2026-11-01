@@ -285,7 +285,7 @@ void func_8008C73C(Player* player, s8 playerIndex) {
 
         if (((player->type & PLAYER_HUMAN) == PLAYER_HUMAN) &&
             ((player->type & PLAYER_INVISIBLE_OR_BOMB) != PLAYER_INVISIBLE_OR_BOMB)) {
-            func_800C90F4(playerIndex, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008003);
+            func_800C90F4(playerIndex, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008003);
         } else {
             play_cpu_sound_effect(playerIndex, player);
         }
@@ -416,7 +416,7 @@ void func_8008CEB0(Player* player, s8 arg1) {
                 player->kartGraphics |= WHISTLE;
                 player->effects &= ~0x40000;
                 if ((player->type & PLAYER_HUMAN) == PLAYER_HUMAN) {
-                    func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008008);
+                    func_800C90F4(arg1, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008008);
                     var_v1 = 0;
                 }
             }
@@ -481,7 +481,7 @@ void func_8008D170(Player* player, s8 arg1) {
                 player->kartGraphics |= WHISTLE;
                 player->effects &= ~0x40000;
                 if ((player->type & PLAYER_HUMAN) == PLAYER_HUMAN) {
-                    func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008008);
+                    func_800C90F4(arg1, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008008);
                     var_v1 = 0;
                 }
             }
@@ -578,7 +578,7 @@ void func_8008D570(Player* player, s8 arg1) {
 
     if (((player->type & PLAYER_HUMAN) == PLAYER_HUMAN) &&
         ((player->type & PLAYER_INVISIBLE_OR_BOMB) != PLAYER_INVISIBLE_OR_BOMB)) {
-        func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + 0x2900800C);
+        func_800C90F4(arg1, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x2900800C);
     }
 }
 
@@ -632,7 +632,7 @@ void func_8008D7B0(Player* player, s8 arg1) {
 
     if (((player->type & PLAYER_HUMAN) == PLAYER_HUMAN) &&
         ((player->type & PLAYER_INVISIBLE_OR_BOMB) != PLAYER_INVISIBLE_OR_BOMB)) {
-        func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008003);
+        func_800C90F4(arg1, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008003);
     }
 }
 
@@ -711,7 +711,7 @@ void trigger_squish(Player* player, s8 arg1) {
         }
 
         if (((player->type & PLAYER_HUMAN) != 0) && ((player->effects & HIT_EFFECT) == 0)) {
-            func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x05));
+            func_800C90F4(arg1, (n64kr_char_voice_line(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x05));
         }
 
         player->effects |= HIT_EFFECT;
@@ -823,7 +823,7 @@ void apply_hit_effect(Player* player, s8 arg1) {
             D_80165190[3][arg1] = 1;
 
             if ((player->type & PLAYER_HUMAN) != 0) {
-                func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008008);
+                func_800C90F4(arg1, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008008);
             }
             break;
     }
@@ -854,7 +854,7 @@ void trigger_lightning_strike(Player* player, s8 arg1) {
 
     if (((player->type & PLAYER_HUMAN) == PLAYER_HUMAN) &&
         ((player->type & PLAYER_INVISIBLE_OR_BOMB) != PLAYER_INVISIBLE_OR_BOMB)) {
-        func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008003);
+        func_800C90F4(arg1, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008003);
     } else {
         play_cpu_sound_effect(arg1, player);
     }
@@ -900,7 +900,7 @@ void apply_lightning_effect(Player* player, s8 arg1) {
         player->unk_0B0 += 1;
         player->kartPropulsionStrength = (f32) ((f64) player->kartPropulsionStrength * 0.6);
         if ((player->unk_0B0 == 1) && (player->type & PLAYER_HUMAN)) {
-            func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008005);
+            func_800C90F4(arg1, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008005);
         }
         if ((player->unk_0B0 >= 0) && (player->unk_0B0 < 0x1CC)) {
             move_f32_towards(&player->size, 0.7f, 0.1f);
@@ -909,7 +909,7 @@ void apply_lightning_effect(Player* player, s8 arg1) {
         } else {
             remove_lightning_effect(player, arg1);
             if (player->type & PLAYER_HUMAN) {
-                func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008008);
+                func_800C90F4(arg1, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008008);
             }
         }
     }
@@ -1018,7 +1018,7 @@ void trigger_vertical_tumble(Player* player, s8 arg1) {
 
         if (1) {}
 
-        func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008005);
+        func_800C90F4(arg1, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008005);
         if (((gModeSelection == VERSUS) && ((player->type & PLAYER_CPU) != 0)) && (!gDemoMode)) {
             func_800CA24C(arg1);
         }
@@ -1120,7 +1120,7 @@ void trigger_high_tumble(Player* player, s8 arg1) {
 
     if (((player->type & PLAYER_HUMAN) == PLAYER_HUMAN) &&
         ((player->type & PLAYER_INVISIBLE_OR_BOMB) != PLAYER_INVISIBLE_OR_BOMB)) {
-        func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008005);
+        func_800C90F4(arg1, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008005);
         func_800C9060(arg1, SOUND_ACTION_EXPLOSION);
     } else {
         play_cpu_sound_effect(arg1, player);
@@ -1156,11 +1156,11 @@ void trigger_asphalt_ramp_boost(Player* player, s8 playerId) {
     player->unk_DB4.unk8 = 8.0f;
     if (D_8015F890 != 1) {
         if (((player->type & PLAYER_HUMAN) == PLAYER_HUMAN) && ((player->type & PLAYER_INVISIBLE_OR_BOMB) == 0)) {
-            func_800C90F4(playerId, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008001);
+            func_800C90F4(playerId, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008001);
             func_800C9060(playerId, 0x1900A40B);
         }
     } else if (player == gPlayerOne) {
-        func_800C90F4(playerId, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008001);
+        func_800C90F4(playerId, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008001);
         func_800C9060(playerId, 0x1900A40B);
     }
     player->kartProps &= ~BACK_UP;
@@ -1203,11 +1203,11 @@ void trigger_wood_ramp_boost(Player* player, s8 playerId) {
 
     if (D_8015F890 != 1) {
         if (((player->type & PLAYER_HUMAN) == PLAYER_HUMAN) && ((player->type & PLAYER_INVISIBLE_OR_BOMB) == 0)) {
-            func_800C90F4(playerId, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008001);
+            func_800C90F4(playerId, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008001);
             func_800C9060(playerId, 0x1900A40B);
         }
     } else if (player == gPlayerOne) {
-        func_800C90F4(playerId, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008001);
+        func_800C90F4(playerId, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008001);
         func_800C9060(playerId, 0x1900A40B);
     }
 
@@ -1250,7 +1250,7 @@ void func_8008F104(Player* player, s8 arg1) {
 
     if (((player->type & PLAYER_HUMAN) == PLAYER_HUMAN) &&
         ((player->type & PLAYER_INVISIBLE_OR_BOMB) != PLAYER_INVISIBLE_OR_BOMB)) {
-        func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008003);
+        func_800C90F4(arg1, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008003);
     }
 }
 
@@ -1342,7 +1342,7 @@ void func_8008F494(Player* player, s8 arg1) {
 
     if (((player->type & PLAYER_HUMAN) != 0) && ((player->type & PLAYER_INVISIBLE_OR_BOMB) == 0) &&
         ((player->lakituProps & HELD_BY_LAKITU) == 0) && ((player->oobProps & UNDER_OOB_OR_FLUID_LEVEL) == 0) && ((player->oobProps & PASS_OOB_OR_FLUID_LEVEL) == 0)) {
-        func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008004);
+        func_800C90F4(arg1, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008004);
     }
 }
 

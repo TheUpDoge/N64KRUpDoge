@@ -24,6 +24,11 @@ void n64kr_character_select_draw(s32 column, s32 row, s32 playerIdx);
 // is chosen, else their stock selection.
 s32 n64kr_human_character(s32 playerIdx);
 
+// From the select screen's confirm voice (player_select_menu_act, src/menus.c):
+// voice index for the character human player `playerIdx` confirms on stock
+// cell `stockId` (n64kr_char_voice_line of their alternate, if any).
+s32 n64kr_select_voice(s32 playerIdx, s32 stockId);
+
 // From spawn_player (src/spawn_players.c): the character a racer spawns as.
 // Swaps a human's stock selection for their alternate; anything else is kept.
 u16 n64kr_spawn_character(s32 playerIndex, u16 characterId, s32 playerType);

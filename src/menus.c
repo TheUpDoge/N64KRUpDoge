@@ -1602,7 +1602,7 @@ void player_select_menu_act(struct Controller* controller, u16 controllerIdx) {
                 if ((btnAndStick & A_BUTTON) && (gCharacterGridIsSelected[controllerIdx] == 0)) {
                     gCharacterGridIsSelected[controllerIdx] = true;
                     i = sCharacterGridOrder[gCharacterGridSelections[controllerIdx] - 1];
-                    func_800C90F4(controllerIdx, 0x2900800e + (i << 4));
+                    func_800C90F4(controllerIdx, 0x2900800e + (n64kr_select_voice(controllerIdx, i) << 4)); // N64KR HOOK
                 }
                 // L800B36F4
                 selected = false;

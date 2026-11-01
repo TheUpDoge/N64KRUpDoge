@@ -720,7 +720,7 @@ void func_80283B6C(UNUSED CinematicCamera* camera) {
 
 void func_80283BA4(UNUSED CinematicCamera* camera) {
     func_800CA0B8();
-    func_800C90F4(0, (n64kr_char_voice(gPlayerFour->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x04));
+    func_800C90F4(0, (n64kr_char_voice_line(gPlayerFour->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x04));
     func_800CA0A0();
 }
 

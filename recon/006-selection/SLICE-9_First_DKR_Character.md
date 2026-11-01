@@ -106,3 +106,18 @@ Debug and Release: 0 errors, no warnings from `src/n64kr`.
 - MK64 voices are N64 VADPCM samples in instrument banks (`sound/banks/*`, `sound/samples/*` in mk64.o2r; `src/port/resource/importers/AudioSampleFactory.cpp`), triggered as `voice * 0x10 + SOUND_ARG_LOAD(0x29, 0x00, 0x80, slot)` through the `sound_player` sequence. A 9th voice set inside that system needs new sequence bytecode and bank instruments.
 - DKR has Diddy's full set (`include/sound_ids.h`: POSITIVE1–8, NEGATIVE1–8, LAUGH/LAUGH2, WOAH, SELECT "I'm Diddy"); audio assets are libultra banks the decomp tool keeps as raw blobs (`ASSET_AUDIO_*`).
 - Plan: decode Diddy's DKR clips to WAV in his mod; at runtime mix them into the port's output buffer (`src/port/Engine.cpp` before `AudioPlayerPlayFrame`, one hook), with distance-based volume; route MK64's voice slots for characters with an own voice to DKR clips instead of `play_sound`.
+
+## Step 2c: own voice (built)
+
+### DKR side [VERIFIED: decomp source + ROM]
+- `ASSET_AUDIO` = section 39, table 38. Entry 1 = sound-effect bank file (libultra `ALBankFile`, `include/PR/libaudio.h`, offsets from file start), entry 2 = wave data (`.tbl`), entry 6 = sound table (`SoundData`, 10 bytes per id) (`src/audio.c:90-114`). A sound id plays bank 0, instrument 0, sound `soundBite - 1` (`src/audiosfx.c:698`). Bank rate 22050 Hz.
+- Voice ids (`include/sound_ids.h`): POSITIVE1..8 from 0x162 and NEGATIVE1..8 from 0x1C2, stride 12 over Krunch, Bumper, Tiptup, Conker, Timber, Banjo, Drumstick, Pipsy, T.T., Diddy, unused×2. Diddy also: LAUGH 0x42, LAUGH2 0x44, WOAH 0x9C, SELECT 0x90 ("I'm Diddy").
+- Tool `tools/n64kr/dkr_voice_to_wav.py`: parses the bank, decodes VADPCM (N64 tools' algorithm: codebook expansion, 2×8-sample halves, floor division by 2048), writes 16-bit WAVs at bank rate × sound-table pitch. Diddy: 20 clips, 0.11–0.53 s, RMS ~7–14k with a few full-scale samples (hot mastering; smooth waveforms) → `build/x64/mods/n64kr-dkr-diddy/sound/n64kr/diddy/`.
+
+### MK64 side
+- [VERIFIED: source] All voice lines are `voice * 0x10 + SOUND_ARG_LOAD(0x29, 0x00, 0x80, slot)` and every request goes through `play_sound` (`src/audio/external.c:1278`) with a listener-relative position (CPU lines rotated into camera space, `func_800C1DA4`; a human's own lines sit at the listener). MK64 never uses bank-2 voice ids with low byte ≥ 0x80.
+- New accessor `n64kr_char_voice_line`: stock voice index, or the character's own id (≥ 9) when it has a `voiceName`. 63 voice-line sites now use it (61 `n64kr_char_voice(x) * 0x10` + 2 results-menu lines on `D_802874D8.unk1E`); engine sound and its tuning stay on `n64kr_char_voice` (Toad).
+- `src/n64kr/voice.{h,cpp}`: `n64kr_voice_play_sound` (hook at the top of `play_sound`) catches ids 0x90+, picks a clip for the slot, loads the WAV from the mod (`LoadFileProcess`, as custom music does), plays it through the port's HMAS mixer (`src/port/audio/HMAS.cpp`, already mixed into the output with master volume) at gain 0.6 × distance falloff (full within 100 units, silent at 1200). One line per character per 150 ms (split screen requests once per camera).
+- Slot → clips [CONCLUSION from call sites]: 0x03 finished 5th+, 0x05 fell in water/lava ("woah"), 0x06 hit by item/object, 0x0B CPU hit → negative; 0x07 GP 1st, 0x04 podium → win (laughs + big positives); 0x08 fell/out of bounds → "woah"; 0x0E select confirm → "I'm Diddy" (hook in `menus.c` via `n64kr_select_voice`); others → positive.
+- `src/port/Engine.cpp`: the HMAS + game audio sum is clamped (was a plain s16 add that wraps on loud overlaps).
+- [VERIFIED: build] Debug: 0 errors. In-game check pending.

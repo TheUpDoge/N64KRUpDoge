@@ -509,7 +509,10 @@ void GameEngine::HandleAudioThread() {
         float master_vol = CVarGetFloat("gGameMasterVolume", 1.0f);
 
         for (size_t i = 0; i < SAMPLES_PER_FRAME; i++) {
-            mix_buffer[i] = nas_buffer[i] + ((int16_t)(hmas_buffer[i] * 32767.0f) * master_vol);
+            // N64KR HOOK: clamp the sum (was a plain s16 add, which wraps when loud HMAS sounds such as
+            // own voice clips, n64kr/voice.cpp, overlap game audio).
+            mix_buffer[i] = (s16) std::clamp(nas_buffer[i] + (int32_t) ((int16_t)(hmas_buffer[i] * 32767.0f) * master_vol),
+                                             -32768, 32767);
         }
 
         AudioPlayerPlayFrame((u8*) mix_buffer, 2 * num_audio_samples * 4);

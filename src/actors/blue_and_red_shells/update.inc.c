@@ -296,7 +296,7 @@ void update_actor_red_blue_shell(struct ShellActor* shell) {
                     if ((gPlayers[shell->playerId].type & PLAYER_HUMAN) != 0) {
                         func_800C9060(shell->playerId, SOUND_ARG_LOAD(0x19, 0x00, 0x80, 0x04));
                         func_800C90F4(shell->playerId,
-                                      (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x00));
+                                      (n64kr_char_voice_line(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x00));
                     }
                     if (pad13 == ACTOR_RED_SHELL) {
                         add_red_shell_in_unexpired_actor_list(CM_FindActorIndex(shell));
@@ -313,7 +313,7 @@ void update_actor_red_blue_shell(struct ShellActor* shell) {
                     if ((gPlayers[shell->playerId].type & PLAYER_HUMAN) != 0) {
                         func_800C9060(shell->playerId, SOUND_ARG_LOAD(0x19, 0x00, 0x80, 0x04));
                         func_800C90F4(shell->playerId,
-                                      (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x00));
+                                      (n64kr_char_voice_line(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x00));
                     }
                     if (pad13 == ACTOR_RED_SHELL) {
                         add_red_shell_in_unexpired_actor_list(CM_FindActorIndex(shell));

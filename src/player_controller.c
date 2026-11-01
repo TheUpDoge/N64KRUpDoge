@@ -862,7 +862,7 @@ void func_8002A704(Player* player, s8 arg1) {
     player->triggers &= ~START_BOOST_TRIGGER;
     if (((player->type & PLAYER_HUMAN) == PLAYER_HUMAN) &&
         ((player->type & PLAYER_INVISIBLE_OR_BOMB) != PLAYER_INVISIBLE_OR_BOMB)) {
-        func_800C90F4(0U, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008001);
+        func_800C90F4(0U, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008001);
         func_800C9060(arg1, 0x1900A40BU);
     }
     player->boostTimer = 0x0050;
@@ -1467,7 +1467,7 @@ void func_8002BF4C(Player* player, s8 arg1) {
                     player->effects |= 0x200000;
                     if ((player->type & PLAYER_INVISIBLE_OR_BOMB) != PLAYER_INVISIBLE_OR_BOMB) {
                         uselessAssignment = player->type & PLAYER_INVISIBLE_OR_BOMB;
-                        func_800C90F4(arg1, (n64kr_char_voice(player->characterId) * 0x10) + 0x29008001);
+                        func_800C90F4(arg1, (n64kr_char_voice_line(player->characterId) * 0x10) + 0x29008001);
                     }
                     if ((player->type & PLAYER_INVISIBLE_OR_BOMB) != PLAYER_INVISIBLE_OR_BOMB) {
                         uselessAssignment = var_a2;

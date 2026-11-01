@@ -463,7 +463,7 @@ void update_actor_triple_shell(TripleShellParent* parent, s16 shellType) {
                     shell->someTimer = 0x001E;
                     func_800C9060(parent->playerId, SOUND_ARG_LOAD(0x19, 0x00, 0x80, 0x04));
                     func_800C90F4(parent->playerId,
-                                  (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x00));
+                                  (n64kr_char_voice_line(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x00));
                     if (parent->type == ACTOR_TRIPLE_RED_SHELL) {
                         add_red_shell_in_unexpired_actor_list(parent->shellIndices[0]);
                     } else {
@@ -492,7 +492,7 @@ void update_actor_triple_shell(TripleShellParent* parent, s16 shellType) {
                     shell->state = MOVING_SHELL;
                     shell->someTimer = 0x001E;
                     func_800C90F4(parent->playerId,
-                                  (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x00));
+                                  (n64kr_char_voice_line(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x00));
                     func_800C9060(parent->playerId, SOUND_ARG_LOAD(0x19, 0x00, 0x80, 0x04));
                     if (parent->type == ACTOR_TRIPLE_RED_SHELL) {
                         add_red_shell_in_unexpired_actor_list(parent->shellIndices[1]);
@@ -527,7 +527,7 @@ void update_actor_triple_shell(TripleShellParent* parent, s16 shellType) {
                     shell->someTimer = 0x001E;
                     func_800C9060(parent->playerId, SOUND_ARG_LOAD(0x19, 0x00, 0x80, 0x04));
                     func_800C90F4(parent->playerId,
-                                  (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x00));
+                                  (n64kr_char_voice_line(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x00));
                     if (parent->type == ACTOR_TRIPLE_RED_SHELL) {
                         add_red_shell_in_unexpired_actor_list(parent->shellIndices[2]);
                     } else {

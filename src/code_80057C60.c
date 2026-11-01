@@ -2311,7 +2311,7 @@ void func_8005CB60(s32 playerId, s32 lapCount) {
                     if (D_80165638 != playerHUD[playerId].someTimer1) {
                         D_80165658[0] = D_80165658[1] = 0;
                     }
-                    func_800C90F4(0U, (n64kr_char_voice(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x0D));
+                    func_800C90F4(0U, (n64kr_char_voice_line(player->characterId) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x0D));
                     D_80165638 = playerHUD[playerId].someTimer1;
                     D_80165658[lapCount - 1] = 1;
                     D_801657E3 = 1;
