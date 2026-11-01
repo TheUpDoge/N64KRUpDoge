@@ -41,5 +41,5 @@ Source: DKR decomp `a5eb080` (`src/asset_loading.c:57-90`, `src/objects.c:752-75
 
 ## Open
 - [ ] Character differences felt in game (T.T. faster, Krunch heavier).
-- [ ] Tree pop-in on DK Jungle. **[HYPOTHESIS]** either MK64's own palm-tree distance culling (`src/actors/palm_tree/render.inc.c`, toggled by Enhancements → General → Disable Culling) or `render_track_sections` switching to `pathCounter` when the player is more than 30 units above the surface (`src/racing/render_courses.c:136`), which a floating hovercraft over the river hits more often. Needs the user's comparison with a normal kart.
+- [x] Tree pop-in on DK Jungle: **not caused by N64KR.** [VERIFIED: user playtest] it also happens with a normal kart. [CONCLUSION] It is MK64's own culling (palm trees: `src/actors/palm_tree/render.inc.c`), which SpaghettiKart can turn off with Enhancements → General → Disable Culling.
 - [ ] Only US v80 is supported by the extractor.
