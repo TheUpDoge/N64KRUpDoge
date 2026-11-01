@@ -2,7 +2,7 @@
 
 Project: N64 Kart Racing (N64KR)
 Date: 2026-11-01
-Status: BUILT, not yet tested in game
+Status: PASSED (user playtest 2026-11-01)
 
 ## Design
 Instead of a separate screen or the debug menu, the vehicle is picked on MK64's own character select screen, per human player: **R toggles Kart ↔ Hover**, and the choice shows as a label (yellow KART / green HOVER) at the bottom of the player's character cell. The choice persists between races.
@@ -29,3 +29,6 @@ Character select facts: `gCharacterGridSelections[4]` (cursor cell, 0 = none), `
 2. Race with HOVER: hover physics with that character; with KART: stock.
 3. 2-player: each player's choice is independent.
 4. Debug override "Own character" (0) so it doesn't override Player 1.
+
+## In-game test [VERIFIED: user playtest]
+- "it works": R toggles KART/HOVER on the character select screen and the race uses the chosen vehicle.
