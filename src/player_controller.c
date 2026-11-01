@@ -1963,6 +1963,7 @@ void func_8002D268(Player* player, UNUSED Camera* camera, s8 screenId, s8 player
     newVelocity[1] +=
         (((((f64) ((sp184[1] + gravityY) + sp160[1])) - (newVelocity[1] * (0.12 * ((f64) player->kartFriction)))) / 6000.0) /
         ((f64) player->unk_DAC));
+    n64kr_movement_velocity_stage(player, playerId, newVelocity); // N64KR HOOK
     if (((((player->lakituProps & HELD_BY_LAKITU) == HELD_BY_LAKITU) || ((player->lakituProps & LAKITU_SCENE) == LAKITU_SCENE)) ||
         ((player->effects & HIT_EFFECT) == HIT_EFFECT)) ||
         (player->lakituProps & LAKITU_RETRIEVAL)) {
@@ -4379,6 +4380,7 @@ void func_80037CFC(Player* player, struct Controller* controller, s8 arg2) {
 }
 
 void handle_a_press_for_player_during_race(Player* player, struct Controller* controller, s8 arg2) {
+    n64kr_record_input(player, controller); // N64KR HOOK
     if (((player->type & PLAYER_EXISTS) == PLAYER_EXISTS) && ((player->type & PLAYER_HUMAN) == PLAYER_HUMAN) &&
         ((player->type & PLAYER_CPU) != PLAYER_CPU)) {
         if ((player->type & PLAYER_START_SEQUENCE) != PLAYER_START_SEQUENCE) {

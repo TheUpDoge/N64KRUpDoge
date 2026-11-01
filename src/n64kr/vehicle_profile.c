@@ -2,6 +2,7 @@
 #include <defines.h>
 
 #include "main.h"
+#include "n64kr/hover.h"
 #include "n64kr/movement.h"
 #include "n64kr/vehicle_profile.h"
 
@@ -15,12 +16,13 @@ static const N64krVehicleProfile sProfiles[N64KR_PROFILE_COUNT] = {
     { "Peach", PEACH, N64KR_MOVEMENT_GROUND },
     { "Bowser", BOWSER, N64KR_MOVEMENT_GROUND },
     { "Floaty test (Mario stats)", MARIO, N64KR_MOVEMENT_TEST_FLOATY },
+    { "Hovercraft (test stats)", MARIO, N64KR_MOVEMENT_HOVER },
 };
 
 // -1 = not assigned yet.
 static s32 sPlayerProfileId[N64KR_NUM_PLAYERS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 
-static s32 player_index(const Player* player) {
+s32 n64kr_player_index(const Player* player) {
     ptrdiff_t index = player - gPlayers;
 
     if ((index < 0) || (index >= N64KR_NUM_PLAYERS)) {
@@ -41,7 +43,7 @@ const N64krVehicleProfile* n64kr_get_vehicle_profile(s32 profileId) {
 }
 
 void n64kr_assign_vehicle_profile(Player* player) {
-    s32 index = player_index(player);
+    s32 index = n64kr_player_index(player);
     s32 profileId = player->characterId;
 
     if (index < 0) {
@@ -54,10 +56,11 @@ void n64kr_assign_vehicle_profile(Player* player) {
         }
     }
     sPlayerProfileId[index] = profileId;
+    n64kr_hover_reset(index);
 }
 
 s32 n64kr_vehicle_profile_id(const Player* player) {
-    s32 index = player_index(player);
+    s32 index = n64kr_player_index(player);
 
     if ((index < 0) || !is_valid_profile(sPlayerProfileId[index])) {
         return player->characterId;

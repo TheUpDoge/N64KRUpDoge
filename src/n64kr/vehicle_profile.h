@@ -31,6 +31,9 @@ typedef enum {
     N64KR_PROFILE_BOWSER,
     // SLICE-2 test vehicle: Mario's stats with N64KR_MOVEMENT_TEST_FLOATY.
     N64KR_PROFILE_TEST_FLOATY,
+    // SLICE-3: DKR-style hovercraft with placeholder stats (n64kr/hover.c).
+    // statsId still feeds MK64's bounding box, hop and steering tables.
+    N64KR_PROFILE_HOVERCRAFT,
     N64KR_PROFILE_COUNT
 } N64krVehicleProfileId;
 
@@ -53,6 +56,9 @@ const N64krVehicleProfile* n64kr_get_vehicle_profile(s32 profileId);
 void n64kr_assign_vehicle_profile(Player* player);
 
 s32 n64kr_vehicle_profile_id(const Player* player);
+
+// Index into gPlayers, or -1 for a Player outside it.
+s32 n64kr_player_index(const Player* player);
 
 // Index for MK64's per-kart physics tables. Falls back to characterId for a
 // player that was never assigned a profile.
