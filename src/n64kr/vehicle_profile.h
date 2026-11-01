@@ -8,6 +8,7 @@
 // tables in effects.c). Upstream code reads those tables with
 // [n64kr_stats_id(player)] instead of [player->characterId].
 // Graphics, sounds and character size stay keyed by characterId.
+// SLICE-2: a profile also picks the movement model (n64kr/movement.h).
 
 #include <common_structs.h>
 
@@ -17,8 +18,8 @@ extern "C" {
 
 #define N64KR_NUM_PLAYERS 8
 
-// Stock profiles, one per MK64 kart. Values match the character ids in
-// defines.h (MARIO 0 ... BOWSER 7).
+// Stock profiles come first, one per MK64 kart, and their values match the
+// character ids in defines.h (MARIO 0 ... BOWSER 7).
 typedef enum {
     N64KR_PROFILE_MARIO,
     N64KR_PROFILE_LUIGI,
@@ -28,6 +29,8 @@ typedef enum {
     N64KR_PROFILE_WARIO,
     N64KR_PROFILE_PEACH,
     N64KR_PROFILE_BOWSER,
+    // SLICE-2 test vehicle: Mario's stats with N64KR_MOVEMENT_TEST_FLOATY.
+    N64KR_PROFILE_TEST_FLOATY,
     N64KR_PROFILE_COUNT
 } N64krVehicleProfileId;
 
@@ -35,6 +38,8 @@ typedef struct {
     const char* name;
     // Index into the MK64 per-kart stat tables (0..7).
     s32 statsId;
+    // N64krMovementModel
+    s32 movementModel;
 } N64krVehicleProfile;
 
 // CVar holding Player 1's profile override: 0 = the character's own kart,
@@ -52,6 +57,9 @@ s32 n64kr_vehicle_profile_id(const Player* player);
 // Index for MK64's per-kart physics tables. Falls back to characterId for a
 // player that was never assigned a profile.
 s32 n64kr_stats_id(const Player* player);
+
+// N64krMovementModel for the player's profile.
+s32 n64kr_movement_model(const Player* player);
 
 #ifdef __cplusplus
 }

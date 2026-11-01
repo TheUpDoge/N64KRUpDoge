@@ -24,6 +24,7 @@
 #include "src/enhancements/moon_jump.h"
 #include "engine/Matrix.h"
 #include "n64kr/vehicle_profile.h" // N64KR HOOK
+#include "n64kr/movement.h"        // N64KR HOOK
 
 extern s32 D_8018D168;
 
@@ -348,7 +349,7 @@ void func_80028864(Player* player, Camera* camera, s8 playerId, s8 screenId) {
                 ((player->effects & 0x20000) == 0x20000) || (player->kartProps & UNUSED_0x800)) {
                 func_8002E594(player, camera, screenId, playerId);
             } else {
-                func_8002D268(player, camera, screenId, playerId);
+                n64kr_movement_update(player, camera, screenId, playerId); // N64KR HOOK
             }
         } else {
             control_cpu_movement(player, camera, screenId, playerId);
@@ -357,7 +358,7 @@ void func_80028864(Player* player, Camera* camera, s8 playerId, s8 screenId) {
         func_8002D028(player, playerId);
         func_8002F730(player, camera, screenId, playerId);
     } else if (player->type & PLAYER_UNKNOWN_0x80) {
-        func_8002D268(player, camera, screenId, playerId);
+        n64kr_movement_update(player, camera, screenId, playerId); // N64KR HOOK
     } else {
         if ((player->type & PLAYER_HUMAN) != PLAYER_HUMAN) {
             player->currentSpeed = 50.0f;
@@ -377,7 +378,7 @@ void func_80028C44(Player* player, Camera* camera, s8 playerId, s8 screenId) {
             ((player->effects & 0x20000) == 0x20000) || ((player->kartProps & UNUSED_0x800) != 0)) {
             func_8002E594(player, camera, screenId, playerId);
         } else {
-            func_8002D268(player, camera, screenId, playerId);
+            n64kr_movement_update(player, camera, screenId, playerId); // N64KR HOOK
         }
     } else {
         player->effects &= -9;
@@ -397,7 +398,7 @@ void func_80028D3C(Player* player, Camera* camera, s8 playerId, s8 screenId) {
             ((player->effects & 0x20000) == 0x20000) || ((player->kartProps & UNUSED_0x800) != 0)) {
             func_8002E594(player, camera, screenId, playerId);
         } else {
-            func_8002D268(player, camera, screenId, playerId);
+            n64kr_movement_update(player, camera, screenId, playerId); // N64KR HOOK
         }
     } else {
         player->effects = player->effects & ~8;

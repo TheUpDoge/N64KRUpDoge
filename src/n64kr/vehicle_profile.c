@@ -2,11 +2,19 @@
 #include <defines.h>
 
 #include "main.h"
+#include "n64kr/movement.h"
 #include "n64kr/vehicle_profile.h"
 
 static const N64krVehicleProfile sProfiles[N64KR_PROFILE_COUNT] = {
-    { "Mario", MARIO }, { "Luigi", LUIGI }, { "Yoshi", YOSHI },   { "Toad", TOAD },
-    { "DK", DK },       { "Wario", WARIO }, { "Peach", PEACH },   { "Bowser", BOWSER },
+    { "Mario", MARIO, N64KR_MOVEMENT_GROUND },
+    { "Luigi", LUIGI, N64KR_MOVEMENT_GROUND },
+    { "Yoshi", YOSHI, N64KR_MOVEMENT_GROUND },
+    { "Toad", TOAD, N64KR_MOVEMENT_GROUND },
+    { "DK", DK, N64KR_MOVEMENT_GROUND },
+    { "Wario", WARIO, N64KR_MOVEMENT_GROUND },
+    { "Peach", PEACH, N64KR_MOVEMENT_GROUND },
+    { "Bowser", BOWSER, N64KR_MOVEMENT_GROUND },
+    { "Floaty test (Mario stats)", MARIO, N64KR_MOVEMENT_TEST_FLOATY },
 };
 
 // -1 = not assigned yet.
@@ -64,4 +72,13 @@ s32 n64kr_stats_id(const Player* player) {
         return player->characterId;
     }
     return sProfiles[profileId].statsId;
+}
+
+s32 n64kr_movement_model(const Player* player) {
+    s32 profileId = n64kr_vehicle_profile_id(player);
+
+    if (!is_valid_profile(profileId)) {
+        return N64KR_MOVEMENT_GROUND;
+    }
+    return sProfiles[profileId].movementModel;
 }

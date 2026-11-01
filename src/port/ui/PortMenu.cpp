@@ -399,6 +399,7 @@ void PortMenu::AddEnhancements() {
     static const std::unordered_map<int32_t, const char*> n64krProfileOptions = {
         { 0, "Own character" }, { 1, "Mario" }, { 2, "Luigi" }, { 3, "Yoshi" }, { 4, "Toad" },
         { 5, "DK" },            { 6, "Wario" }, { 7, "Peach" }, { 8, "Bowser" },
+        { 9, "Floaty test (Mario stats)" },
     };
     path = { "Enhancements", "N64KR", SECTION_COLUMN_1 };
     AddSidebarEntry("Enhancements", "N64KR", 3);

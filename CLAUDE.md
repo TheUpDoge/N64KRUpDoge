@@ -27,7 +27,7 @@ US version, `.z64` byte order, SHA-1 `579C48E211AE952530FFC8738709F078D5DD215E`.
 Check it with `Get-FileHash .\mk64.us.z64 -Algorithm SHA1` in PowerShell. A different hash usually means `.n64`/`.v64` byte order or a non-US version.
 
 ## Milestones (do them in order, one checkpoint at a time)
-Done: SLICE-0 (`recon/000-baseline/`), SLICE-1 (`recon/001-vehicle-profile/`).
+Done: SLICE-0 (`recon/000-baseline/`), SLICE-1 (`recon/001-vehicle-profile/`), SLICE-2 (`recon/002-movement-switch/`).
 
 - **SLICE-0, baseline:** clone with `--recursive`, configure and build per SpaghettiKart's `docs/BUILDING.md`, generate `mk64.o2r` from the ROM, then drive one race. Record build time, warnings and anything broken.
 - **SLICE-1, VehicleProfile seam:** add `n64kr::VehicleProfile` (top speed, gravity, friction, acceleration curve, handling, bounding box, hop). Add a per-player `vehicleProfileId`. Route the `gKart*Table[player->characterId]` physics reads (mostly `src/player_controller.c`, also `effects.c` and `spawn_players.c`) through it. Leave the `kart_dma.c` texture lookups keyed by character.
