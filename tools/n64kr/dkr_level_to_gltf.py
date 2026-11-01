@@ -580,67 +580,12 @@ def write_mk64_layout(out_dir, name, transform, ordered, objects, floor_tris, sk
     return floor_offset
 
 
-def convert(rom, name, out_dir, mk64=False):
-    if name not in LEVEL_MODELS:
-        sys.exit(f"Unknown track '{name}'. Use --list.")
-    models = rom.section("ASSET_LEVEL_MODELS")
-    table = rom.table("ASSET_LEVEL_MODELS_TABLE")
-    index = LEVEL_MODELS.index(name)
-    data = dkr_inflate(models[table[index]:table[index + 1]])
-
-    tex_off, seg_off = u32(data, 0x00), u32(data, 0x04)
-    num_textures, num_segments = s16(data, 0x18), s16(data, 0x1A)
-    textures = []
-    for t in range(num_textures):
-        o = tex_off + t * 8
-        textures.append({"id": u32(data, o) & 0x7FFF, "w": data[o + 4], "h": data[o + 5],
-                         "surface": struct.unpack_from("b", data, o + 7)[0]})
-
-    # (texture index or None, flags category) -> list of corner tuples
-    groups = {}
-    for k in range(num_segments):
-        so = seg_off + k * SEGMENT_SIZE
-        v_off, t_off, b_off = u32(data, so), u32(data, so + 4), u32(data, so + 0xC)
-        num_batches = s16(data, so + 0x20)
-        for b in range(num_batches):
-            bo = b_off + b * BATCH_SIZE
-            tex_index = data[bo]
-            v_base = s16(data, bo + 2)
-            f_start, f_end = s16(data, bo + 4), s16(data, bo + BATCH_SIZE + 4)
-            flags = u32(data, bo + 8)
-            hidden = bool(flags & RENDER_HIDDEN)
-            key = (None if tex_index == 0xFF else tex_index,
-                   "hidden" if hidden else "visible",
-                   bool(flags & RENDER_WATER), bool(flags & RENDER_NO_COLLISION),
-                   bool(flags & (RENDER_SEMI_TRANSPARENT | RENDER_CUTOUT)))
-            corners = groups.setdefault(key, [])
-            for f in range(f_start, f_end):
-                tr = t_off + f * TRIANGLE_SIZE
-                vis = (data[tr + 1], data[tr + 2], data[tr + 3])
-                for c in range(3):
-                    vo = v_off + (v_base + vis[c]) * VERTEX_SIZE
-                    x, y, z = s16(data, vo), s16(data, vo + 2), s16(data, vo + 4)
-                    r, g, bl, a = data[vo + 6:vo + 10]
-                    if r == 1 and g == 1:
-                        a, r, g, bl = bl, 0x80, 0x80, 0x80
-                    u, v = s16(data, tr + 4 + c * 4), s16(data, tr + 6 + c * 4)
-                    corners.append((x, y, z, r, g, bl, a, u, v))
-
+def write_gltf(rom, out_dir, name, groups, textures):
+    """Write groups of triangle corners as glTF 2.0 + PNG textures.
+    groups: {(texture index or None, "visible"/"hidden", water, no_collision,
+    transparent): [(x, y, z, r, g, b, a, u, v), ...]}; textures: list of
+    {"id", "w", "h", "surface"} (3D texture ids) or {"image": (w, h, rgba), "file"}."""
     os.makedirs(os.path.join(out_dir, "textures"), exist_ok=True)
-    if mk64:
-        objects = level_objects(rom, index)
-        scenery_groups(rom, objects["scenery"], textures, groups)
-        transform, ordered = mk64_layout(objects)
-        for key, corners in groups.items():
-            groups[key] = [transform(c[0], c[1], c[2]) + tuple(c[3:]) for c in corners]
-        floor_tris = []
-        for key, corners in groups.items():
-            if key[1] == "visible" and not key[3]:
-                floor_tris += [(corners[i][:3], corners[i + 1][:3], corners[i + 2][:3]) for i in range(0, len(corners), 3)]
-        sky = sky_colours(rom, objects["sky_object"])
-        y_offset = write_mk64_layout(out_dir, name, transform, ordered, objects, floor_tris, sky)
-        for key, corners in groups.items():
-            groups[key] = [(c[0], c[1] + y_offset, c[2]) + tuple(c[3:]) for c in corners]
     tex3d = rom.section("ASSET_TEXTURES_3D")
     tex3d_table = rom.table("ASSET_TEXTURES_3D_TABLE")
     images, samplers, gl_textures, materials, material_index = [], [], [], [], {}
@@ -764,6 +709,70 @@ def convert(rom, name, out_dir, mk64=False):
     hidden = sum(len(c) for k, c in groups.items() if k[1] == "hidden") // 3
     print(f"Wrote {os.path.join(out_dir, name + '.gltf')}: {tris} triangles ({hidden} invisible walls), "
           f"{len(materials)} materials, {len(images)} textures.")
+
+
+def convert(rom, name, out_dir, mk64=False):
+    if name not in LEVEL_MODELS:
+        sys.exit(f"Unknown track '{name}'. Use --list.")
+    models = rom.section("ASSET_LEVEL_MODELS")
+    table = rom.table("ASSET_LEVEL_MODELS_TABLE")
+    index = LEVEL_MODELS.index(name)
+    data = dkr_inflate(models[table[index]:table[index + 1]])
+
+    tex_off, seg_off = u32(data, 0x00), u32(data, 0x04)
+    num_textures, num_segments = s16(data, 0x18), s16(data, 0x1A)
+    textures = []
+    for t in range(num_textures):
+        o = tex_off + t * 8
+        textures.append({"id": u32(data, o) & 0x7FFF, "w": data[o + 4], "h": data[o + 5],
+                         "surface": struct.unpack_from("b", data, o + 7)[0]})
+
+    # (texture index or None, flags category) -> list of corner tuples
+    groups = {}
+    for k in range(num_segments):
+        so = seg_off + k * SEGMENT_SIZE
+        v_off, t_off, b_off = u32(data, so), u32(data, so + 4), u32(data, so + 0xC)
+        num_batches = s16(data, so + 0x20)
+        for b in range(num_batches):
+            bo = b_off + b * BATCH_SIZE
+            tex_index = data[bo]
+            v_base = s16(data, bo + 2)
+            f_start, f_end = s16(data, bo + 4), s16(data, bo + BATCH_SIZE + 4)
+            flags = u32(data, bo + 8)
+            hidden = bool(flags & RENDER_HIDDEN)
+            key = (None if tex_index == 0xFF else tex_index,
+                   "hidden" if hidden else "visible",
+                   bool(flags & RENDER_WATER), bool(flags & RENDER_NO_COLLISION),
+                   bool(flags & (RENDER_SEMI_TRANSPARENT | RENDER_CUTOUT)))
+            corners = groups.setdefault(key, [])
+            for f in range(f_start, f_end):
+                tr = t_off + f * TRIANGLE_SIZE
+                vis = (data[tr + 1], data[tr + 2], data[tr + 3])
+                for c in range(3):
+                    vo = v_off + (v_base + vis[c]) * VERTEX_SIZE
+                    x, y, z = s16(data, vo), s16(data, vo + 2), s16(data, vo + 4)
+                    r, g, bl, a = data[vo + 6:vo + 10]
+                    if r == 1 and g == 1:
+                        a, r, g, bl = bl, 0x80, 0x80, 0x80
+                    u, v = s16(data, tr + 4 + c * 4), s16(data, tr + 6 + c * 4)
+                    corners.append((x, y, z, r, g, bl, a, u, v))
+
+    os.makedirs(os.path.join(out_dir, "textures"), exist_ok=True)
+    if mk64:
+        objects = level_objects(rom, index)
+        scenery_groups(rom, objects["scenery"], textures, groups)
+        transform, ordered = mk64_layout(objects)
+        for key, corners in groups.items():
+            groups[key] = [transform(c[0], c[1], c[2]) + tuple(c[3:]) for c in corners]
+        floor_tris = []
+        for key, corners in groups.items():
+            if key[1] == "visible" and not key[3]:
+                floor_tris += [(corners[i][:3], corners[i + 1][:3], corners[i + 2][:3]) for i in range(0, len(corners), 3)]
+        sky = sky_colours(rom, objects["sky_object"])
+        y_offset = write_mk64_layout(out_dir, name, transform, ordered, objects, floor_tris, sky)
+        for key, corners in groups.items():
+            groups[key] = [(c[0], c[1] + y_offset, c[2]) + tuple(c[3:]) for c in corners]
+    write_gltf(rom, out_dir, name, groups, textures)
 
 
 def main():
