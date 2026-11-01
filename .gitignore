@@ -133,3 +133,8 @@ _packages/
 out/
 
 compile_commands.json
+
+# N64KR: never commit ROMs or ROM-derived assets
+*.n64
+*.v64
+baseroms/
