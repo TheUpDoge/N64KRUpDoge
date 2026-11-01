@@ -32,15 +32,20 @@ typedef enum {
     // SLICE-2 test vehicle: Mario's stats with N64KR_MOVEMENT_TEST_FLOATY.
     N64KR_PROFILE_TEST_FLOATY,
     // SLICE-3: DKR-style hovercraft (n64kr/hover.c); real DKR stats when
-    // n64kr_dkr_hover.txt is present, placeholders otherwise.
-    // statsId still feeds MK64's bounding box, hop and steering tables.
+    // n64kr_dkr_hover.txt is present, placeholders otherwise. Uses the
+    // driver's own MK64 stats for bounding box, hop and steering tables.
+    // Picked per player on the character select screen (n64kr/vehicle_select.h).
     N64KR_PROFILE_HOVERCRAFT,
     N64KR_PROFILE_COUNT
 } N64krVehicleProfileId;
 
+// statsId value: use the racer's own character stats (e.g. a hovercraft
+// driven by whoever picked it).
+#define N64KR_STATS_OWN_CHARACTER -1
+
 typedef struct {
     const char* name;
-    // Index into the MK64 per-kart stat tables (0..7).
+    // Index into the MK64 per-kart stat tables (0..7), or N64KR_STATS_OWN_CHARACTER.
     s32 statsId;
     // N64krMovementModel
     s32 movementModel;
@@ -52,8 +57,9 @@ typedef struct {
 
 const N64krVehicleProfile* n64kr_get_vehicle_profile(s32 profileId);
 
-// Called from spawn_player() once characterId is set. gPlayers[0] (Player 1)
-// takes the N64KR_CVAR_P1_PROFILE override when it is set.
+// Called from spawn_player() once characterId is set. Human players get the
+// vehicle they picked on the character select screen; gPlayers[0] (Player 1)
+// takes the N64KR_CVAR_P1_PROFILE debug override when it is set.
 void n64kr_assign_vehicle_profile(Player* player);
 
 s32 n64kr_vehicle_profile_id(const Player* player);

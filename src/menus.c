@@ -23,6 +23,7 @@
 #include <sounds.h>
 #include "spawn_players.h"
 #include "port/Game.h"
+#include "n64kr/vehicle_select.h" // N64KR HOOK
 
 /** BSS **/
 s32 gIntroModelZEye;
@@ -1584,6 +1585,7 @@ void player_select_menu_act(struct Controller* controller, u16 controllerIdx) {
                     }
                     return;
                 }
+                n64kr_vehicle_select_input(controllerIdx, btnAndStick); // N64KR HOOK
                 // L800B3630
                 if (btnAndStick & B_BUTTON) {
                     if (gCharacterGridIsSelected[controllerIdx]) {

@@ -2,9 +2,11 @@
 #include <defines.h>
 
 #include "main.h"
+#include "menus.h"
 #include "n64kr/hover.h"
 #include "n64kr/movement.h"
 #include "n64kr/vehicle_profile.h"
+#include "n64kr/vehicle_select.h"
 
 static const N64krVehicleProfile sProfiles[N64KR_PROFILE_COUNT] = {
     { "Mario", MARIO, N64KR_MOVEMENT_GROUND },
@@ -16,7 +18,7 @@ static const N64krVehicleProfile sProfiles[N64KR_PROFILE_COUNT] = {
     { "Peach", PEACH, N64KR_MOVEMENT_GROUND },
     { "Bowser", BOWSER, N64KR_MOVEMENT_GROUND },
     { "Floaty test (Mario stats)", MARIO, N64KR_MOVEMENT_TEST_FLOATY },
-    { "Hovercraft (DKR)", MARIO, N64KR_MOVEMENT_HOVER },
+    { "Hovercraft (DKR)", N64KR_STATS_OWN_CHARACTER, N64KR_MOVEMENT_HOVER },
 };
 
 // -1 = not assigned yet.
@@ -49,6 +51,11 @@ void n64kr_assign_vehicle_profile(Player* player) {
     if (index < 0) {
         return;
     }
+    // Human players: vehicle picked on the character select screen.
+    if ((index < gPlayerCount) && (n64kr_vehicle_choice(index) == N64KR_VEHICLE_HOVERCRAFT)) {
+        profileId = N64KR_PROFILE_HOVERCRAFT;
+    }
+    // Debug override from the N64KR menu wins for Player 1.
     if (index == 0) {
         s32 override = CVarGetInteger(N64KR_CVAR_P1_PROFILE, 0) - 1;
         if (is_valid_profile(override)) {
@@ -71,7 +78,7 @@ s32 n64kr_vehicle_profile_id(const Player* player) {
 s32 n64kr_stats_id(const Player* player) {
     s32 profileId = n64kr_vehicle_profile_id(player);
 
-    if (!is_valid_profile(profileId)) {
+    if (!is_valid_profile(profileId) || (sProfiles[profileId].statsId == N64KR_STATS_OWN_CHARACTER)) {
         return player->characterId;
     }
     return sProfiles[profileId].statsId;

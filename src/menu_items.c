@@ -52,6 +52,7 @@
 #include "src/engine/HM_Intro.h"
 #include "src/port/interpolation/FrameInterpolation.h"
 #include "audio/heap.h"
+#include "n64kr/vehicle_select.h" // N64KR HOOK
 #include <assets/models/startup_logo.h>
 
 const char* GetCupName(void);
@@ -6597,6 +6598,7 @@ void render_menus(MenuItem* arg0) {
                         temp_t2 += 0xBF;
                     }
                     render_cursor_player(arg0, temp_a0, temp_t2);
+                    n64kr_vehicle_select_draw(arg0->column, arg0->row, temp_a0); // N64KR HOOK
                 }
                 break;
             case CHARACTER_SELECT_MENU_OK:
