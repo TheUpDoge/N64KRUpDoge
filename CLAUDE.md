@@ -28,7 +28,8 @@ Check it with `Get-FileHash .\mk64.us.z64 -Algorithm SHA1` in PowerShell. A diff
 
 ## Milestones (do them in order, one checkpoint at a time)
 Done: SLICE-0 (`recon/000-baseline/`), SLICE-1 (`recon/001-vehicle-profile/`), SLICE-2 (`recon/002-movement-switch/`).
-In progress: SLICE-3 hover v1 and SLICE-4 hover on water (`recon/004-hover/`); open checks are listed in each record.
+Hover (SLICE-3/4/5, `recon/004-hover/`): works with real DKR stats; open checks listed in each record.
+SLICE-6 first DKR track (`recon/005-content-merge/`): Ancient Lake converts from the DKR ROM and drives. Pipeline: `tools/n64kr/dkr_level_to_gltf.py --mk64` → `blender_dkr_track.py` (Blender 4.3.2 + HarbourMasters Fast64 in `E:\Claude	ools\`) → `dkr_track_scene.py`. Output goes to `build/x64/mods/` and is never committed.
 
 - **SLICE-0, baseline:** clone with `--recursive`, configure and build per SpaghettiKart's `docs/BUILDING.md`, generate `mk64.o2r` from the ROM, then drive one race. Record build time, warnings and anything broken.
 - **SLICE-1, VehicleProfile seam:** add `n64kr::VehicleProfile` (top speed, gravity, friction, acceleration curve, handling, bounding box, hop). Add a per-player `vehicleProfileId`. Route the `gKart*Table[player->characterId]` physics reads (mostly `src/player_controller.c`, also `effects.c` and `spawn_players.c`) through it. Leave the `kart_dma.c` texture lookups keyed by character.

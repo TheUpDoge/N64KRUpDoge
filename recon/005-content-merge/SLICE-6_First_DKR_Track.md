@@ -2,7 +2,7 @@
 
 Project: N64 Kart Racing (N64KR)
 Date: 2026-11-01
-Status: DRIVABLE (user playtest 2026-11-01). Follow-up issues open.
+Status: PASSED (user playtest 2026-11-01). Ancient Lake drives, items, minimap, scenery, sky, banner all work.
 
 ## Converter: `tools/n64kr/dkr_level_to_gltf.py`
 Reads the user's own DKR ROM (USA 1.1 / v80 only, SHA-1 checked) and writes glTF 2.0 + PNG textures under `build/dkr_tracks/<track>/` (git-ignored; ROM data, never committed). The script holds no game data.
@@ -111,6 +111,16 @@ Output: `build/x64/mods/n64kr-dkr-ancient-lake/` (git-ignored; ROM data).
 
 ### Playtest after layering fix (user screenshots, 2026-11-01)
 - [VERIFIED] Banner issue fixed; trees, sky and DKR start banner render.
-- Minimap showed striped lines: the image was 40 px wide; 4-bit (I4) textures need widths that are multiples of 16, otherwise rows are fetched misaligned. Fix: width padded to a multiple of 16 (Ancient Lake: 48×80), track centred, dot offsets recomputed. Not yet re-tested.
+- Minimap showed striped lines: the image was 40 px wide; 4-bit (I4) textures need widths that are multiples of 16, otherwise rows are fetched misaligned. Fix: width padded to a multiple of 16 (Ancient Lake: 48×80), track centred, dot offsets recomputed. [VERIFIED: user playtest] minimap works.
 - "Only stars and lightning": [VERIFIED: source] the user was 8th; human 8th-place odds are star 30, thunderbolt 20, triple red shell 20, blue shell 15, super mushroom 10, triple mushroom 5 (`src/engine/registry/RegisterItemTables.cpp:106-111`). Working as MK64 intends.
 - Backing into a wall filled the screen with the sand cliff: the chase camera went inside DKR's cliff geometry (tall walls right beside the track). With culling now off its inside faces are drawn; previously they were culled, which is what looked like "shells through hills". [HYPOTHESIS] camera collision against walls would avoid it; not addressed yet.
+
+## Result
+SLICE-6 passed: the first DKR track runs in N64KR, converted automatically from the user's ROM in three commands.
+
+### Known limits (follow-ups)
+- Chase camera clips inside DKR's tall cliffs when backing into a wall.
+- Trees/bushes have no collision (DKR `solid` flag is read but unused).
+- ~50 DKR `Animation` objects (animated props) not converted; music is CustomTrack default.
+- Sprite textures downscaled to fit TMEM (32×64 / 32×32).
+- Other DKR tracks not converted yet; the pipeline is generic but only tested on Ancient Lake.
