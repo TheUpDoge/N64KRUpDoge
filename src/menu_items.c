@@ -7709,7 +7709,7 @@ void func_800A32B4(s32 arg0, s32 arg1, s32 characterId, s32 rank) {
     sp3C[2] = '.';
     sp3C[3] = '\0';
     func_800939C8(arg0 - 1, arg1, &sp3C[1], -4, 0.7f, 0.7f);
-    print_text_mode_1(arg0 + 0xA, arg1, D_800E76A8[n64kr_char_hud(characterId)], 0, 0.65f, 0.7f);
+    print_text_mode_1(arg0 + 0xA, arg1, (char*) n64kr_char_name(characterId) /* N64KR HOOK */, 0, 0.65f, 0.7f);
     convert_number_to_ascii((s32) (sp50 / 60.0f), sp3C);
     func_800939C8(arg0 + 0x42, arg1, sp3C, 0, 0.7f, 0.7f);
     convert_number_to_ascii((s32) sp50 % 60, sp3C);
@@ -7867,7 +7867,7 @@ void func_800A3ADC(MenuItem* arg0, s32 arg1, s32 arg2, s32 characterId, s32 arg4
     sp34[2] = '.';
     sp34[3] = '\0';
     func_800939C8(arg1, arg2, &sp34[1], -4, 0.7f, 0.7f);
-    print_text_mode_1(arg1 + 0xA, arg2, D_800E76A8[n64kr_char_hud(characterId)], 0, 0.7f, 0.7f);
+    print_text_mode_1(arg1 + 0xA, arg2, (char*) n64kr_char_name(characterId) /* N64KR HOOK */, 0, 0.7f, 0.7f);
     convert_number_to_ascii(gGPPointsByCharacterId[characterId], sp34);
     func_800939C8(arg1 + 0x47, arg2, sp34, 0, 0.7f, 0.7f);
     if ((arg4 < ARRAY_COUNT(gGPPointRewards)) && (arg0->state < 9)) {
@@ -8163,7 +8163,7 @@ void render_lap_times(s32 recordType, s32 column, s32 row) {
     } else {
         characterId = 8;
     }
-    print_text1_center_mode_1(column + 0x78, row, D_800E76A8[n64kr_char_hud(characterId)], 0, 0.65f, 0.65f);
+    print_text1_center_mode_1(column + 0x78, row, (char*) n64kr_char_name(characterId) /* N64KR HOOK */, 0, 0.65f, 0.65f);
 }
 #else
 GLOBAL_ASM("asm/non_matchings/menu_items/render_lap_times.s")

@@ -91,3 +91,18 @@ Debug and Release: 0 errors, no warnings from `src/n64kr`.
 
 ### In-game test [VERIFIED: user playtest 2026-11-01]
 - L on the select screen, race as Diddy with his own kart sprites: user reports "Works".
+
+## Step 2b: own portrait, minimap icons, name
+
+- [VERIFIED: o2r] Stock HUD per character: `common_texture_portrait_<c>` 32×32 CI8 + `common_tlut_portrait_<c>` (3 px blue frame, black inside, 26×26 art), `common_texture_minimap_kart_<c>` 8×8 RGBA16 (top-down kart in the character's colour), `common_texture_minimap_<c>` 8×8 progress dot (magenta for all). DK's suffix is `donkey_kong` for portrait/kart, `dk` for the dot. Kart icon colours taken: red, green, teal, cyan, brown, yellow, pink, purple; Diddy gets orange (248,120,0).
+- Tool `tools/n64kr/blender_dkr_racer_hud.py`: renders the racer's head (driving pose frame 40, 3/4 view facing right like the stock portraits, 4× supersampled) into the template's frame; recolours the template kart icon; copies the dot. Writes PNG + stub resource each into the character mod. Output for Diddy: `build/x64/mods/n64kr-dkr-diddy/textures/common_data/*_diddy`.
+- Registry field `hudName` ("diddy"). `n64kr_hud_texture(characterId, stockPath)` swaps the `hud` character's suffix for hudName; `n64kr_char_name(characterId)` returns MK64's name text for stock characters and the registry name in capitals otherwise ("DIDDY").
+- Hooks: `render_objects.c` portraits (2) and minimap icons (4) through `n64kr_hud_texture`; `menu_items.c` name text (3: GP standings, results, time records) through `n64kr_char_name`.
+- `kart_sprites.cpp` renamed `character_assets.cpp` (kart + HUD paths).
+- [VERIFIED: build] Debug: 0 errors. In-game check pending.
+- Not covered yet: the post-GP results face (`D_800E7D54`, menu textures) and the select screen face/nameplate (step 3, grid).
+
+## Voice: plan [CONCLUSION from source reading]
+- MK64 voices are N64 VADPCM samples in instrument banks (`sound/banks/*`, `sound/samples/*` in mk64.o2r; `src/port/resource/importers/AudioSampleFactory.cpp`), triggered as `voice * 0x10 + SOUND_ARG_LOAD(0x29, 0x00, 0x80, slot)` through the `sound_player` sequence. A 9th voice set inside that system needs new sequence bytecode and bank instruments.
+- DKR has Diddy's full set (`include/sound_ids.h`: POSITIVE1–8, NEGATIVE1–8, LAUGH/LAUGH2, WOAH, SELECT "I'm Diddy"); audio assets are libultra banks the decomp tool keeps as raw blobs (`ASSET_AUDIO_*`).
+- Plan: decode Diddy's DKR clips to WAV in his mod; at runtime mix them into the port's output buffer (`src/port/Engine.cpp` before `AudioPlayerPlayFrame`, one hook), with distance-based volume; route MK64's voice slots for characters with an own voice to DKR clips instead of `play_sound`.

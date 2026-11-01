@@ -38,6 +38,10 @@ typedef struct {
     // Kart sprite folder under textures/karts/ (a mod), laid out like the
     // `sprites` character's frames; NULL = use that character's own sprites.
     const char* kartFolder;
+    // Suffix of the character's own HUD textures (textures/common_data/
+    // common_texture_portrait_<hudName>, ..._minimap_kart_<hudName>,
+    // ..._minimap_<hudName>, from a mod); NULL = the `hud` character's.
+    const char* hudName;
 } N64krCharacter;
 
 s32 n64kr_character_count(void);
@@ -56,6 +60,14 @@ s32 n64kr_char_stats(s32 characterId);
 // tables (looked up with n64kr_char_sprites), moved to the character's own
 // kartFolder if it has one. The returned string stays valid.
 const char* n64kr_kart_texture(s32 characterId, const char* stockPath);
+
+// HUD texture path (portrait, minimap icons): the stock path from MK64's tables
+// (looked up with n64kr_char_hud), moved to the character's hudName if set.
+const char* n64kr_hud_texture(s32 characterId, const char* stockPath);
+
+// Name shown in results and records: MK64's text for stock characters, the
+// registry name in capitals otherwise.
+const char* n64kr_char_name(s32 characterId);
 
 #ifdef __cplusplus
 }
