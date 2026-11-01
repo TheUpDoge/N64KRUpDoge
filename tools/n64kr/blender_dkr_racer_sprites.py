@@ -145,8 +145,10 @@ for o in body:
 # Wheels: camera-facing quads. Each DKR wheel sprite (one per spin state) has
 # frames for the wheel seen from 0 deg (head-on) to 90 deg (side on) round
 # from the vehicle's vertical plane; DKR picks the frame per draw from the
-# camera position and mirrors it when the camera is on the vehicle's -X side
-# (render_sprite_billboard, decomp src/camera.c). Quads are sized
+# camera position (render_sprite_billboard, decomp src/camera.c:1077-1120).
+# It does not mirror: on one side it turns the sprite 180 deg in its plane
+# (tiltAngle += 0x8000), which keeps the tyre's shading the right way up. The
+# small camera-height tilt DKR adds is not applied. Quads are sized
 # pixel x part scale (DKR model units), one quad per frame size.
 camera = scene.camera
 reference = body[0]  # its local axes are the DKR model's (x lateral, +y forward, z up)
@@ -226,8 +228,13 @@ def update_wheels(spin, steer=0.0):
     import math
 
     cam_local = reference.matrix_world.inverted() @ camera.matrix_world.translation
+    # View direction from the vehicle's centre, not each wheel: the sprite
+    # camera is close, so per-wheel angles differ by up to ~13 deg and the far
+    # rear wheel showed its inner face like a steered wheel (user: "the rears
+    # are turning"). One direction keeps wheels parallel to the body.
+    centre = sum((wh["pos"] for wh in wheels), mathutils.Vector()) / len(wheels)
     for wh in wheels:
-        d = cam_local - wh["pos"]
+        d = cam_local - mathutils.Vector((centre.x, centre.y, wh["pos"].z))
         if wh["steers"] and steer:
             c, s_ = math.cos(-steer), math.sin(-steer)  # wheel yawed by +steer (into the turn)
             d = mathutils.Vector((d.x * c - d.y * s_, d.x * s_ + d.y * c, d.z))
@@ -236,8 +243,13 @@ def update_wheels(spin, steer=0.0):
         frame = min(len(images) - 1, int(angle / (math.pi / 2) * len(images)))
         image, w_units, h_units = images[frame]
         next(n for n in wh["mat"].node_tree.nodes if n.type == "TEX_IMAGE").image = image
-        mirror = -1.0 if d.x < 0 else 1.0
-        wh["obj"].scale = (wh["base_scale"].x * w_units * mirror, wh["base_scale"].y * h_units, wh["base_scale"].z)
+        # DKR axes: x lateral, z = -(our y) (models face -Z). tanY = atan2(x, ..),
+        # negated when the camera is in front (diffZ < 0); a negative tanY turns
+        # the sprite 180 deg (x and y scale -1), never a one-axis mirror.
+        lateral = d.x if -d.y >= 0 else -d.x
+        turn = -1.0 if lateral < 0 else 1.0
+        wh["obj"].scale = (wh["base_scale"].x * w_units * turn, wh["base_scale"].y * h_units * turn,
+                           wh["base_scale"].z)
 
 
 def render_frame(frame, spin, path):
