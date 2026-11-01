@@ -99,7 +99,6 @@ Clip* load_clip(s32 characterId, const char* voiceName, Voice& voice, const std:
 } // namespace
 
 extern "C" s32 n64kr_voice_play_sound(u32 soundBits, const f32* position, u8 cameraId) {
-    (void) cameraId;
     if (((soundBits & 0xFFFFFF00) != 0x29008000) || ((soundBits & 0xFF) < 0x90)) {
         return 0;
     }
@@ -128,12 +127,19 @@ extern "C" s32 n64kr_voice_play_sound(u32 soundBits, const f32* position, u8 cam
         return 1;
     }
 
+    // Ground distance only: MK64's listener-relative vectors keep y = 0
+    // (func_800C1C88), and y = 100000 is its "sound finished" marker, written
+    // into positions shared by all of a player's sounds (external.c
+    // delete_sound_from_bank), so y says nothing about distance.
     float distance = 0.0f;
     if (position != NULL) {
-        distance = std::sqrt(position[0] * position[0] + position[1] * position[1] + position[2] * position[2]);
+        distance = std::sqrt(position[0] * position[0] + position[2] * position[2]);
     }
     float volume = 1.0f - (distance - kNear) / (kFar - kNear);
     volume = kGain * std::fmin(1.0f, std::fmax(0.0f, volume));
+    // Diagnostic (SLICE-9 voice check): one line per voice request.
+    SPDLOG_INFO("[n64kr] voice 0x{:08X} char {} slot {:X} camera {} distance {:.0f} volume {:.2f} -> {}", soundBits,
+                characterId, soundBits & 0xF, cameraId, distance, volume, volume > 0.0f ? "play" : "too far");
     if (volume <= 0.0f) {
         return 1;
     }
@@ -141,5 +147,6 @@ extern "C" s32 n64kr_voice_play_sound(u32 soundBits, const f32* position, u8 cam
     voice.lastStart = now;
     GameEngine::Instance->gHMAS->Play(HMAS_SFX, clip->id, false);
     GameEngine::Instance->gHMAS->SetVolume(HMAS_SFX, volume);
+    SPDLOG_INFO("[n64kr] voice clip id {} playing {}", clip->id, GameEngine::Instance->gHMAS->IsPlaying(HMAS_SFX));
     return 1;
 }
