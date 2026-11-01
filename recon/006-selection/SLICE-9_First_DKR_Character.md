@@ -2,7 +2,7 @@
 
 Project: N64 Kart Racing (N64KR)
 Date: 2026-11-01
-Status: IN PROGRESS. Step 1 (art pipeline) accepted by the user; step 2 (engine slot) built, in-game check pending; step 3 (grid > 8, CPU choice) not started.
+Status: IN PROGRESS. Step 1 (art pipeline) and step 2 (engine slot) pass in game; step 3 (grid > 8, CPU choice) and own HUD/voice not started.
 
 ## Plan
 1. **Art pipeline**: DKR racer 3D model → MK64 kart sprite frames. Validate by replacing an existing character's sprites with a texture pack (supported by SpaghettiKart).
@@ -88,3 +88,6 @@ Debug and Release: 0 errors, no warnings from `src/n64kr`.
 - HUD shows Toad's portrait, name and minimap icon for Diddy; voice is Toad's. With Toad also racing as a CPU, the standings show two "Toad"s.
 - Time trial records and ghosts store the stock cell (3-bit save field), so a Diddy record shows as that character.
 - The select screen shows the stock cell's face; only the label says Diddy.
+
+### In-game test [VERIFIED: user playtest 2026-11-01]
+- L on the select screen, race as Diddy with his own kart sprites: user reports "Works".
