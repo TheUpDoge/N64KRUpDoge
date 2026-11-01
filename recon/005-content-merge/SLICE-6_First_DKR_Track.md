@@ -35,7 +35,13 @@ python -I tools/n64kr/dkr_level_to_gltf.py "<DKR .z64>" ancient_lake build/dkr_t
 ## SpaghettiKart custom track format [VERIFIED: `src/engine/tracks/CustomTrack.cpp:99-158`]
 A mod folder/archive with `scene.json` (props, minimap, actors, environment, read by `TrackEditor::LoadTrackDataFromJson`), `data_track_sections` (array of `TrackSections`: display-list CRC, draw layer, collision clip type, surface type, section id) and the display-list resources. Collision is generated from those display lists (`ParseMeshForCollision`). Fast64 (HarbourMasters fork) writes this from Blender.
 
+## Blender setup [VERIFIED: command output, 2026-11-01]
+- Blender 4.3.2 portable: `E:\Claude\tools\blender-4.3.2-windows-x64\blender.exe` (official `download.blender.org` zip, SHA-256 `933a62a7…d4f6` matched). Settings live in its `portable\` folder, so it doesn't touch any other Blender install.
+- Fast64 (HM64) 2.5.4, HarbourMasters fork `1c919b6` (2026-10-18), installed at `portable\scripts\addons\fast64` and enabled (survives restart).
+- Fast64 MK64 export (`fast64_internal/hm64/mk64`): select the Track Root empty (`hm64_mk64_obj_type == "Track Root"`), set `scene.hm64_mk64_export_name` / `hm64_mk64_export_path`, run `scene.mk64_export_course`. Per **object**: `hm64_mk64_surface_type`, `clip_type`, `draw_layer`, `section_id`. Paths are NURBS/Bezier curves with `hm64_mk64_path_type`. Export scale `scene.fast64.mk64.scale` = 100. HM64 feature set writes `data_track_sections` + `data_paths` XML.
+- Ancient Lake glTF imports cleanly: `ancient_lake_visible` 1080 tris / 24 materials, `ancient_lake_invisible_walls` 76 tris; size 5895 × 10511 × 941 (DKR units), so it needs scaling for MK64.
+
 ## Next
-- Blender 4.3 or older + HarbourMasters Fast64 (`docs/tracks/trackoverview.md`). Not found on this machine yet.
+- Work out the DKR → MK64 scale (compare road widths / kart sizes).
 - In Blender: import the glTF, scale to MK64 size, set up Track Root, surfaces, path, spawn; export.
 - **[HYPOTHESIS]** Later, a direct exporter (DKR data → `scene.json` + `data_track_sections` + display lists, path from DKR checkpoints) could skip Blender and convert every DKR track automatically.
