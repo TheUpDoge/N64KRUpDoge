@@ -168,3 +168,16 @@ root.select_set(True)
 bpy.context.view_layer.objects.active = root
 result = bpy.ops.scene.mk64_export_course()
 print(f"[n64kr] export result {result} -> {mod_dir}")
+
+# libultraship only supports LoadTile on G_TX_LOADTILE (7); anything else
+# asserts in GfxDpLoadTile when the track is drawn. Fast64 emits it for
+# textures that don't fit TMEM or aren't power-of-two.
+import re  # noqa: E402
+
+track_dir = os.path.join(mod_dir, "tracks", export_name)
+bad = [f for f in os.listdir(track_dir) if f.startswith("mat_")
+       and re.search(r'<LoadTile Tile="(?!7")', open(os.path.join(track_dir, f), errors="ignore").read())]
+if bad:
+    print(f"[n64kr] WARNING: materials load textures on a tile other than 7 (will crash in game): {bad}")
+else:
+    print("[n64kr] texture loads OK (no LoadTile outside tile 7)")

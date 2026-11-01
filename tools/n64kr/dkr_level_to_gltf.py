@@ -28,6 +28,7 @@ Format notes (DKR decomp a5eb080):
 - UVs are s16 in 1/32 texel units.
 """
 import json
+import math
 import os
 import struct
 import sys
@@ -346,6 +347,25 @@ def sky_colours(rom, sky_object):
 
 
 MODEL_TYPE_BILLBOARD = 1
+# A texture must fit N64 TMEM (4 KB = 2048 RGBA16 texels) at power-of-two
+# sizes, or Fast64 falls back to multi-tile loads that libultraship rejects
+# (SUPPORT_CHECK(tile == G_TX_LOADTILE) in GfxDpLoadTile).
+TMEM_TEXELS = 2048
+
+
+def fit_tmem(width, height, rgba):
+    """Nearest-neighbour resample to the power-of-two size that fits TMEM
+    with the closest aspect ratio."""
+    sizes = [(1 << a, 1 << b) for a in range(3, 8) for b in range(3, 8) if (1 << a) * (1 << b) <= TMEM_TEXELS]
+    target = width / height
+    tw, th = min(sizes, key=lambda wh: (abs(math.log((wh[0] / wh[1]) / target)), -wh[0] * wh[1]))
+    out = bytearray(tw * th * 4)
+    for y in range(th):
+        sy = min(height - 1, y * height // th)
+        for x in range(tw):
+            sx = min(width - 1, x * width // tw)
+            out[(y * tw + x) * 4:(y * tw + x) * 4 + 4] = rgba[(sy * width + sx) * 4:(sy * width + sx) * 4 + 4]
+    return tw, th, bytes(out)
 
 
 def sprite_image(rom, sprite_id):
@@ -396,16 +416,17 @@ def scenery_groups(rom, scenery, textures, groups):
             # the sprite's frame 0 as the texture.
             if obj["model"] not in sprite_slot:
                 w, h, rgba, left, top = sprite_image(rom, obj["model"])
-                sprite_slot[obj["model"]] = (len(textures), w, h, left, top)
-                textures.append({"id": 0x10000 + obj["model"], "w": w, "h": h, "surface": 0,
-                                 "image": (w, h, rgba), "file": f"dkr_sprite{obj['model']:04d}"})
-            slot, w, h, left, top = sprite_slot[obj["model"]]
+                tw, th, trgba = fit_tmem(w, h, rgba)
+                sprite_slot[obj["model"]] = (len(textures), w, h, left, top, tw, th)
+                textures.append({"id": 0x10000 + obj["model"], "w": tw, "h": th, "surface": 0,
+                                 "image": (tw, th, trgba), "file": f"dkr_sprite{obj['model']:04d}"})
+            slot, w, h, left, top, tw, th = sprite_slot[obj["model"]]
             key = (slot, "visible", False, True, True)
             corners = groups.setdefault(key, [])
             sc = obj["scale"]
             x0, x1, y0, y1 = left * sc, (left + w) * sc, (top - h) * sc, top * sc
             for dx, dz in ((1.0, 0.0), (0.0, 1.0)):
-                quad = [(x0, y1, 0, 0), (x1, y1, w, 0), (x1, y0, w, h), (x0, y0, 0, h)]
+                quad = [(x0, y1, 0, 0), (x1, y1, tw, 0), (x1, y0, tw, th), (x0, y0, 0, th)]
                 pts = [(obj["x"] + qx * dx, obj["y"] + qy, obj["z"] + qx * dz, u * 32, v * 32) for qx, qy, u, v in quad]
                 for tri in ((0, 1, 2), (0, 2, 3), (2, 1, 0), (3, 2, 0)):
                     for i in tri:
