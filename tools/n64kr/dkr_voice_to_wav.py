@@ -16,7 +16,11 @@ Format notes (DKR decomp a5eb080, read from source):
 - A sound id plays bank 0, instrument 0, sound soundBite - 1
   (sndp_play_with_priority, src/audiosfx.c).
 - Waves are N64 VADPCM (9-byte frames, codebook per wave) or raw 16-bit.
-  They play at the bank's sample rate times the sound table pitch.
+  Playback ratio against the 22050 Hz synth output (OUTPUT_RATE, audiomgr.h)
+  is pitch / 100 x slideMult, slideMult = cents2ratio(keyBase * 100 - 6000,
+  + detune unless the key map's pitch-slide flag 0x20 in keyMax is set):
+  DKR reuses the key map as sound parameters (src/audiosfx.c:10-15, 590-597).
+  The bank's sampleRate field is not used for playback.
 - Voice ids (include/sound_ids.h): POSITIVE1..8 and NEGATIVE1..8 are groups
   of 12 racers (Krunch, Bumper, Tiptup, Conker, Timber, Banjo, Drumstick,
   Pipsy, T.T., Diddy, unused, unused); a few named one-off lines per racer.
@@ -30,6 +34,7 @@ import dkr_level_to_gltf as dkr  # noqa: E402
 
 dkr.SECTION_INDEX.update({"ASSET_AUDIO_TABLE": 38, "ASSET_AUDIO": 39})
 
+OUTPUT_RATE = 22050
 VOICE_GROUP = ["krunch", "bumper", "tiptup", "conker", "timber", "banjo", "drumstick", "pipsy", "tt", "diddy"]
 POSITIVE1, NEGATIVE1, GROUP_STRIDE = 0x0162, 0x01C2, 12
 SPECIAL = {  # one-off lines (include/sound_ids.h)
@@ -137,6 +142,10 @@ def extract(rom, racer, out_root):
             print(f"  {clip}: sound id 0x{sound_id:03X} has no bank sound ({bite}), skipped")
             continue
         snd = u32(ctl, inst + 16 + 4 * (bite - 1))
+        keymap = u32(ctl, snd + 4)
+        key_max, key_base, detune = ctl[keymap + 3], ctl[keymap + 4], struct.unpack_from(">b", ctl, keymap + 5)[0]
+        next_sound = ctl[keymap] + (ctl[keymap + 2] & 0xC0) * 4
+        cents = key_base * 100 - 6000 + (0 if key_max & 0x20 else detune)
         wave = u32(ctl, snd + 8)
         base, length, kind = u32(ctl, wave), s32(ctl, wave + 4), ctl[wave + 8]
         data = tbl[base:base + length]
@@ -145,14 +154,14 @@ def extract(rom, racer, out_root):
             pcm = vadpcm_decode(data, order, coefs)
         else:          # AL_RAW16_WAVE
             pcm = [s16(data, i) for i in range(0, len(data) - 1, 2)]
-        play_rate = max(1, round(rate * (pitch or 100) / 100))
+        play_rate = max(1, round(OUTPUT_RATE * (pitch or 100) / 100 * 2 ** (cents / 1200)))
         with open(os.path.join(out_dir, f"{clip}.wav"), "wb") as fh:
             fh.write(wav_bytes(play_rate, pcm))
-        peak = max((abs(v) for v in pcm), default=0)
-        lines.append(f"{clip} 0x{sound_id:03X} bite {bite} {len(pcm) / play_rate:.2f}s {play_rate} Hz vol {volume} peak {peak}")
+        lines.append(f"{clip} 0x{sound_id:03X} bite {bite} {len(pcm) / play_rate:.2f}s {play_rate} Hz "
+                     f"(keyBase {key_base} detune {detune} pitch {pitch}) vol {volume} next {next_sound}")
     with open(os.path.join(out_dir, f"{racer}_voice.txt"), "w") as fh:
         fh.write("\n".join(lines) + "\n")
-    print(f"Voice '{racer}': bank rate {rate} Hz, {len(lines)} clips in {out_dir}")
+    print(f"Voice '{racer}': {len(lines)} clips in {out_dir} (bank header rate {rate} Hz, unused)")
     print("\n".join("  " + line for line in lines))
 
 
