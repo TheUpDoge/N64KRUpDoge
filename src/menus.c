@@ -1,3 +1,4 @@
+#include "n64kr/cups.h" // N64KR HOOK
 #include <libultraship.h>
 #include <libultraship/bridge/audiobridge.h>
 #include <macros.h>
@@ -2027,7 +2028,8 @@ void load_menu_states(s32 menuSelection) {
                 CM_SetCupIndex(BATTLE_CUP);
                 gSubMenuSelection = SUB_MENU_MAP_SELECT_BATTLE_COURSE;
             } else {
-                if (GetCup() == GetBattleCup()) {
+                // N64KR HOOK: N64KR cups have no time trial record slots (n64kr/cups.h)
+                if ((GetCup() == GetBattleCup()) || ((gModeSelection == TIME_TRIALS) && n64kr_cup_is_custom())) {
                     CM_SetCup(GetMushroomCup());
                     CM_SetCupIndex(MUSHROOM_CUP);
                     // gCupSelection = MUSHROOM_CUP;

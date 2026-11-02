@@ -26,6 +26,7 @@ All game content comes from **your own ROMs** at build or run time. This reposit
 | **Dam Speedway B** | Two Dams facing each other, joined across the water: a longer oval with a dam wall behind each turn. | Tested in game |
 | GoldenEye hazards | Oil drums on the road explode when touched (chain reactions, racers tumble); two of Dam's own watchtowers per track, each with a Dam guard (real GoldenEye model and animation) who raises his KF7 and fires bursts at passing racers. | Tested in game |
 | GoldenEye music and sound | The Dam theme plays on the Dam tracks (rendered from GoldenEye's own sequences and instruments, looping; the action version on the final lap); gunfire, explosions, ricochets. | Tested in game |
+| **Rare Cup** | A fifth cup in the cup select (after Special Cup, for Grand Prix and VS): Ancient Lake, Fossil Canyon (DKR), Dam Speedway, Dam Speedway B. Drawn as its own page: banner, course list and preview box as text. | Built; in-game test pending |
 | **3D racers** | Characters with a 3D model are drawn as real-time 3D instead of sprites (Diddy, from his DKR model, with steering poses). Boo/Lakitu translucency, boost afterimage and steering front wheels in progress. Sprites stay as the fallback. | Body tested in game; effects built, not yet tested |
 
 ### Known limits
@@ -106,6 +107,7 @@ The full render takes a few minutes; `--preview` renders 12 sample frames.
 | `ge_hazards.{h,cpp}` | GoldenEye barrels and guards as track actors (`n64kr:ge_barrel`, `n64kr:ge_guard` in scene.json). |
 | `sfx.{h,cpp}` | Positional sound effects with their own voices, mixed next to the port's HMAS mixer. |
 | `music.{h,cpp}` | Other games' songs played through HMAS under N64KR sequence ids (a track's scene.json `Sequence`). |
+| `cups.{h,cpp}` | N64KR cups after the battle cup: registration, which cups each mode can pick, the cup page in the cup select. |
 
 ### Changes to SpaghettiKart's own files
 Upstream files only get thin one-line hooks, each marked `// N64KR HOOK`, so SpaghettiKart updates can still be merged. By file: `menu_items.c` 18, `player_controller.c` 9, `kart_dma.c` 9, `menus.c` 8, `render_objects.c` 7, `spawn_players.c` 6, `ending/code_80281780.c` 5, `render_player.c` 4, `code_80005FD0.c` 4, `audio/external.c` 3, `effects.c` 2, and one each in `racing/race_logic.c`, `racing/actors.c`, `racing/actors_extended.c`, `port/ui/PortMenu.cpp`, `port/Engine.cpp`, `menu_items.h`, `engine/editor/SceneManager.cpp`, `engine/actors/Cloud.cpp`, `ending/ceremony_and_credits.c`, `code_80057C60.c`. Besides that, the voice-line sites call `n64kr_char_voice_line` and per-character table reads go through the registry accessors (see `recon/006-selection/SLICE-8_Character_Registry.md`).
@@ -116,16 +118,15 @@ Upstream files only get thin one-line hooks, each marked `// N64KR HOOK`, so Spa
 1. Build SpaghettiKart as usual (`docs/BUILDING.md`) and generate `mk64.o2r` from your US Mario Kart 64 ROM.
 2. Run the tools above with your DKR ROM (US Rev 1 tested) to generate the mods into `build/x64/mods/`.
 3. For GoldenEye content, build the Rust tool and run the Dam commands above with your GoldenEye ROM (US).
-4. Launch. Diddy is on the DKR page (push right past the character grid); Ancient Lake, Dam Speedway and Dam Speedway B are in the custom tracks (Developer → Debug Mode, then the course row on the start screen).
+4. Launch. Diddy is on the DKR page (push right past the character grid). The Rare Cup (Ancient Lake, Fossil Canyon, Dam Speedway, Dam Speedway B) is past Special Cup in Grand Prix and VS; Fossil Canyon converts like Ancient Lake (`dkr_level_to_gltf.py … fossil_canyon build/dkr_tracks --mk64`, then the Blender and scene steps).
 
 ## Project records (`recon/`)
 Each step ("slice") has a record with what was found in the source, what was changed, and what was verified in game:
-`000-baseline` · `001-vehicle-profile` · `002-movement-switch` · `003-movement` (movement source map) · `004-hover` · `005-content-merge` (first DKR track) · `006-selection` (vehicle select, character registry, Diddy) · `007-3d-racers` · `008-goldeneye-dam` (Dam Speedway A/B, hazards, GoldenEye audio).
+`000-baseline` · `001-vehicle-profile` · `002-movement-switch` · `003-movement` (movement source map) · `004-hover` · `005-content-merge` (first DKR track) · `006-selection` (vehicle select, character registry, Diddy) · `007-3d-racers` · `008-goldeneye-dam` (Dam Speedway A/B, hazards, GoldenEye audio) · `009-circuit-select` (Rare Cup).
 
 ## Roadmap
 - 3D racers: finish effects, then Mario (rigged model in SpaghettiKart's kart setup file) and the rest of the MK64 cast from other N64 games the user owns (Mario Party, Mario Tennis, Smash Bros.).
 - More DKR racers and tracks; DKR music (the Rust sequence renderer reads DKR's libultra banks too).
-- A circuit page in the cup select for N64KR's tracks (MK64's menus index cups by number, so this needs care).
 - GoldenEye's gun-barrel intro and an UpDoge Studios splash; planes and tanks.
 - Data-driven select pages (characters from mods without code changes).
 

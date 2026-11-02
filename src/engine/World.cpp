@@ -1,5 +1,6 @@
 #include <libultraship.h>
 #include "World.h"
+#include "n64kr/cups.h" // N64KR HOOK
 #include "Cup.h"
 #include "tracks/Track.h"
 #include "TrainCrossing.h"
@@ -55,34 +56,34 @@ u32 World::GetCupIndex() {
 }
 
 u32 World::NextCup() {
-    s32 hack = 1;
-
-    // Do not display battle mode on GP, TT, or VS
-    if (gModeSelection != BATTLE) {
-        hack = 2;
+    // N64KR HOOK: step to the next cup this mode may use (n64kr/cups.cpp: no battle
+    // cup outside battle mode, N64KR cups after it); was "up to Cups.size() - hack".
+    for (size_t i = CupIndex + 1; i < Cups.size(); i++) {
+        if (n64kr_cup_selectable((s32) i)) {
+            CupIndex = i;
+            CurrentCup = Cups[CupIndex];
+            CurrentCup->CursorPosition = 0;
+            reset_cycle_flash_menu();
+            play_sound2(SOUND_MENU_CURSOR_MOVE);
+            break;
+        }
     }
-
-    if (CupIndex < Cups.size() - hack) {
-        CupIndex++;
-        CurrentCup = Cups[CupIndex];
-        CurrentCup->CursorPosition = 0;
-        reset_cycle_flash_menu();
-        play_sound2(SOUND_MENU_CURSOR_MOVE);
-        return CupIndex;
-    }
-    return Cups.size() - hack;
+    return CupIndex;
 }
 
 u32 World::PreviousCup() {
-    if (CupIndex > 0) {
-        CupIndex--;
-        CurrentCup = Cups[CupIndex];
-        CurrentCup->CursorPosition = 0;
-        reset_cycle_flash_menu();
-        play_sound2(SOUND_MENU_CURSOR_MOVE);
-        return CupIndex;
+    // N64KR HOOK: as NextCup, skipping cups this mode can't use.
+    for (size_t i = CupIndex; i-- > 0;) {
+        if (n64kr_cup_selectable((s32) i)) {
+            CupIndex = i;
+            CurrentCup = Cups[CupIndex];
+            CurrentCup->CursorPosition = 0;
+            reset_cycle_flash_menu();
+            play_sound2(SOUND_MENU_CURSOR_MOVE);
+            break;
+        }
     }
-    return 0;
+    return CupIndex;
 }
 
 void World::SetCupIndex(size_t index) {

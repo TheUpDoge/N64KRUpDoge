@@ -1,3 +1,4 @@
+#include "n64kr/cups.h" // N64KR HOOK
 #include <libultraship.h>
 #include <typeinfo>
 
@@ -149,6 +150,7 @@ void CustomEngineInit() {
     GetWorld()->AddCup(gStarCup.get());
     GetWorld()->AddCup(gSpecialCup.get());
     GetWorld()->AddCup(gBattleCup.get());
+    n64kr_register_cups(); // N64KR HOOK: N64KR's cups after the battle cup (n64kr/cups.cpp)
 
     SetMarioRaceway();
 
@@ -167,6 +169,7 @@ void CustomEngineDestroy() {
     gStarCup.reset();
     gSpecialCup.reset();
     gBattleCup.reset();
+    n64kr_unregister_cups(); // N64KR HOOK
 }
 
 extern "C" {

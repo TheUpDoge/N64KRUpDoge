@@ -1,3 +1,4 @@
+#include "n64kr/cups.h" // N64KR HOOK
 #include <libultraship.h>
 #include "n64kr/character.h" // N64KR HOOK
 #include <libultra/types.h>
@@ -6642,6 +6643,7 @@ void render_menus(MenuItem* arg0) {
                     gDisplayListHead,
                      gMenuTexturesTrackSelection[arg0->type - COURSE_SELECT_MAP_SELECT],
                     arg0->column, arg0->row);
+                n64kr_cup_page_draw(); // N64KR HOOK: an N64KR cup's page (n64kr/cups.cpp)
                 break;
             case MENU_ITEM_TYPE_05F:
             case MENU_ITEM_TYPE_060:
@@ -6744,7 +6746,7 @@ void render_menus(MenuItem* arg0) {
                 break;
             case MENU_ITEM_TYPE_096:
                 set_text_color(TEXT_BLUE_GREEN_RED_CYCLE_1);
-                print_text1_left(arg0->column, arg0->row, gCupNames[D_800DC540], arg0->param1, arg0->paramf, 1.0f);
+                print_text1_left(arg0->column, arg0->row, n64kr_cup_name(D_800DC540) /* N64KR HOOK */, arg0->param1, arg0->paramf, 1.0f);
                 break;
             case MENU_ITEM_TYPE_097:
                 set_text_color(TEXT_BLUE_GREEN_RED_CYCLE_2);
@@ -7169,6 +7171,9 @@ void func_800A1500(MenuItem* arg0) {
     s32 var_a1;
 
     var_a1 = 0;
+    if (n64kr_cup_is_custom()) { // N64KR HOOK: the page's own preview box instead (n64kr/cups.cpp)
+        return;
+    }
     temp_v0 = find_menu_items_dupe(MENU_ITEM_TYPE_064);
     switch (temp_v0->state) {
         case 0:
@@ -7688,10 +7693,10 @@ void func_800A2EB8(MenuItem* arg0) {
     }
     set_text_color(TEXT_BLUE_GREEN_RED_CYCLE_2);
     temp_s0 = (s32) (((f32) (get_string_width(GetCupName()) + 8) * 0.6f) /
-                     2); //  gCupNames[GetCupIndex()]) + 8) * 0.6f) / 2);
+                     2); //  n64kr_cup_name(GetCupIndex()) /* N64KR HOOK */) + 8) * 0.6f) / 2);
     print_text1_center_mode_1(
         (-(s32) (((f32) (get_string_width(D_800E76CC[gCCSelection]) + 8) * 0.6f) / 2) - arg0->column) + 0xF5,
-        arg0->row + 0xE1, gCupNames[D_800DC540], 0, 0.6f, 0.6f);
+        arg0->row + 0xE1, n64kr_cup_name(D_800DC540) /* N64KR HOOK */, 0, 0.6f, 0.6f);
     print_text1_center_mode_1(
         (temp_s0 - arg0->column) + 0xF5, arg0->row + 0xE1,
         D_800E76CC[gGameModeSubMenuColumn[gPlayerCount - 1][gGameModeMenuColumn[gPlayerCount - 1]]], 0, 0.6f, 0.6f);
@@ -7806,10 +7811,10 @@ void func_800A34A8(MenuItem* arg0) {
             }
         }
         set_text_color(TEXT_BLUE_GREEN_RED_CYCLE_2);
-        temp_s0_3 = ((get_string_width(gCupNames[GetCupIndex()]) + 8) * 0.6f) / 2;
+        temp_s0_3 = ((get_string_width(n64kr_cup_name(GetCupIndex()) /* N64KR HOOK */) + 8) * 0.6f) / 2;
         print_text1_center_mode_1(
             (-(s32) (((get_string_width(D_800E76CC[gCCSelection]) + 8) * 0.6f) / 2) - arg0->column) + 0xE6,
-            arg0->row + 0xE1, gCupNames[D_800DC540], 0, 0.6f, 0.6f);
+            arg0->row + 0xE1, n64kr_cup_name(D_800DC540) /* N64KR HOOK */, 0, 0.6f, 0.6f);
         print_text1_center_mode_1(
             (temp_s0_3 - arg0->column) + 0xE6, arg0->row + 0xE1,
             D_800E76CC[gGameModeSubMenuColumn[gPlayerCount - 1][gGameModeMenuColumn[gPlayerCount - 1]]], 0, 0.6f, 0.6f);
@@ -8348,10 +8353,10 @@ void render_pause_grand_prix(MenuItem* arg0) {
     }
 
     temp_s3 = &D_800E85C0[(gScreenModeSelection * 4) + (gIsGamePaused - 1)];
-    temp_s0 = ((get_string_width(gCupNames[GetCupIndex()]) * one) + 10.0f) / 2;
+    temp_s0 = ((get_string_width(n64kr_cup_name(GetCupIndex()) /* N64KR HOOK */) * one) + 10.0f) / 2;
     temp_s1 = ((get_string_width(D_800E76CC[gCCSelection]) * one) + 10.0f) / 2;
     set_text_color(TEXT_YELLOW);
-    print_text1_center_mode_1(160 - temp_s1, temp_s3->row - 50, gCupNames[GetCupIndex()], 0, 1.0f, 1.0f);
+    print_text1_center_mode_1(160 - temp_s1, temp_s3->row - 50, n64kr_cup_name(GetCupIndex()) /* N64KR HOOK */, 0, 1.0f, 1.0f);
     set_text_color(TEXT_YELLOW);
     print_text1_center_mode_1(160 + temp_s0, temp_s3->row - 50, D_800E76CC[gCCSelection], 0, 1.0f, 1.0f);
     set_text_color(TEXT_YELLOW);
@@ -8636,7 +8641,7 @@ void func_800A6034(MenuItem* arg0) {
 
     if (D_801657E8 != true) {
         gDPSetPrimColor(gDisplayListHead++, 0, 0, 0x00, 0x00, 0x00, arg0->param1);
-        text = gCupNames[D_800DC540];
+        text = n64kr_cup_name(D_800DC540) /* N64KR HOOK */;
         set_text_color(TEXT_BLUE_GREEN_RED_CYCLE_2);
         print_text1_center_mode_2(arg0->column + 0x41, arg0->row + 0xA0, text, 0, 0.85f, 1.0f);
         text = CM_GetProps()->Name;
@@ -10903,6 +10908,7 @@ void func_800AB098(MenuItem* arg0) {
 
 void func_800AB164(MenuItem* arg0) {
     Unk_D_800E70A0* thing = &D_800E7148[arg0->type - 0x53];
+    arg0->visible = !n64kr_cup_is_custom(); // N64KR HOOK: an N64KR cup draws its own banner (n64kr/cups.cpp)
 
     if (((s32) GetCupIndex() + 0x53) == arg0->type) {
         arg0->priority = 0x0A;
@@ -10943,6 +10949,9 @@ void func_800AB260(MenuItem* arg0) {
 }
 
 void func_800AB290(MenuItem* arg0) {
+    if (n64kr_cup_is_custom()) { // N64KR HOOK: no MK64 course picture for N64KR cups
+        return;
+    }
     if (arg0->param1 != (s32) GetCupIndex()) {
         arg0->param1 = GetCupIndex();
         func_8009A594(arg0->D_8018DEE0_index, 0,
@@ -11204,7 +11213,7 @@ void func_800ABCF4(MenuItem* arg0) {
         case 0:
             arg0->column = 0;
             arg0->state = 1;
-            arg0->param2 = (get_string_width(gCupNames[D_800DC540]) / 2) + 0xA0;
+            arg0->param2 = (get_string_width(n64kr_cup_name(D_800DC540) /* N64KR HOOK */) / 2) + 0xA0;
             /* fallthrough */
         case 1:
             func_800A9208(arg0, arg0->param2);
