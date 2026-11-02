@@ -1,0 +1,12 @@
+[package]
+name = "n64kr"
+version = "0.1.0"
+edition = "2021"
+description = "N64KR asset tools: extract and convert content from your own N64 ROMs (never committed)."
+publish = false
+
+[dependencies]
+flate2 = "1"
+
+[profile.release]
+opt-level = 3
