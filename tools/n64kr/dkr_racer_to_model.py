@@ -8,9 +8,9 @@ under build/, never commit):
   tex_<n>               RGBA16 texture resources (DKR textures, wheel faces)
   mat_<n>               material display lists (combiner, render mode, texture load)
   pose<p>_<group>_vtx   vertex buffers, one per driving pose and material group
-  pose<p>               one display list per pose: body + rear wheels
-  wheel<k>              front (steering) wheels, built around their centre
-  model.json            pose count, scale, front wheel centres (read by the engine)
+  pose<p>               one display list per pose: the body
+  wheel<k>              wheels, each built around its centre (rolled / steered by the engine)
+  model.json            pose count, scale, wheel centres (read by the engine)
 
 Model space: DKR model units, Y up, turned to face +Z (DKR models face -Z):
 (x, y, z) -> (-x, y - ground, -z), so the tyres' bottom is y = 0. The engine
@@ -36,16 +36,17 @@ import dkr_level_to_gltf as dkr  # noqa: E402
 import dkr_racer_to_gltf as racers  # noqa: E402
 
 POSE_FRAMES = [0, 10, 20, 30, 40, 48, 56, 64, 73]  # full right .. straight .. full left
-# World units per DKR model unit: the MK64 sprite quad is 18 x 18 units for a
-# 64 x 64 frame (src/data/some_data.c gPlayerOneVtx) and the sprite fit put
-# Diddy at ~15 units tall (SLICE-9). Applied by the engine, recorded here.
-WORLD_SCALE = 0.12
+# World units per DKR model unit, applied by the engine (read from model.json).
+# First estimate 0.12 from the 18 x 18 unit sprite quad (src/data/some_data.c
+# gPlayerOneVtx) and the SLICE-9 sprite fit; in game Diddy read about twice
+# MK64 racer size (user playtest), so half that.
+WORLD_SCALE = 0.06
 VERTS_PER_LOAD = 30
 WHEEL_SIDES = 10
 # DKR draws wheels as flat camera-facing sprites; as solid cylinders at the
-# sprite's size they read too big (user playtest), so scale them down.
-WHEEL_RADIUS_SCALE = 0.75
-WHEEL_WIDTH_SCALE = 0.6
+# sprite's size they read too big (user playtests), so scale them down.
+WHEEL_RADIUS_SCALE = 0.6
+WHEEL_WIDTH_SCALE = 0.45
 HEADER = (b"\0\0\0\0" + b"XETO" + b"\0\0\0\0" + bytes.fromhex("efbeaddeefbeadde")).ljust(0x40, b"\0")
 
 
@@ -90,18 +91,22 @@ class Writer:
                  '\t<PipeSync/>',
                  '\t<SetGeometryMode G_SHADE="1" G_SHADING_SMOOTH="1" G_ZBUFFER="1"/>',
                  '\t<ClearGeometryMode G_LIGHTING="1" G_FOG="1" G_CULL_BACK="1" G_CULL_FRONT="1" G_TEXTURE_GEN="1"/>',
-                 '\t<SetCycleType G_CYC_1CYCLE="1"/>',
+                 '\t<SetCycleType G_CYC_2CYCLE="1"/>',
                  '\t<SetTextureFilter Mode="G_TF_BILERP"/>',
                  '\t<SetTexturePersp Enable="G_TP_PERSP"/>',
                  '\t<SetTextureLUT Mode="G_TT_NONE"/>']
+        # Cycle 2 = MK64's racer colour effect (func_8004B614, render_objects.c):
+        # colour = (1 - env) x colour + prim, the per-player effect colours the
+        # engine sets (zero normally, flashing for a star).
+        cycle2 = ('A1="G_CCMUX_1" B1="G_CCMUX_ENVIRONMENT" C1="G_CCMUX_COMBINED" D1="G_CCMUX_PRIMITIVE" '
+                  'Aa1="G_ACMUX_0" Ab1="G_ACMUX_0" Ac1="G_ACMUX_0" Ad1="G_ACMUX_COMBINED"/>')
         if tex_name:
-            # colour = texel x shade (vertex colour), alpha = texel x primitive alpha.
-            # No render mode here: the engine sets it with the primitive alpha
-            # (opaque cutout normally, translucent for Boo / the boost afterimage).
+            # Cycle 1: colour = texel x shade (vertex colour), alpha = texel x
+            # primitive alpha. No render mode here: the engine sets it with the
+            # primitive alpha (opaque cutout normally, translucent for Boo / the
+            # boost afterimage).
             lines += ['\t<SetCombineLERP A0="G_CCMUX_TEXEL0" B0="G_CCMUX_0" C0="G_CCMUX_SHADE" D0="G_CCMUX_0" '
-                      'Aa0="G_ACMUX_TEXEL0" Ab0="G_ACMUX_0" Ac0="G_ACMUX_PRIMITIVE" Ad0="G_ACMUX_0" '
-                      'A1="G_CCMUX_TEXEL0" B1="G_CCMUX_0" C1="G_CCMUX_SHADE" D1="G_CCMUX_0" '
-                      'Aa1="G_ACMUX_TEXEL0" Ab1="G_ACMUX_0" Ac1="G_ACMUX_PRIMITIVE" Ad1="G_ACMUX_0"/>',
+                      'Aa0="G_ACMUX_TEXEL0" Ab0="G_ACMUX_0" Ac0="G_ACMUX_PRIMITIVE" Ad0="G_ACMUX_0" ' + cycle2,
                       '\t<Texture S="65535" T="65535" Level="0" Tile="0" On="1"/>',
                       f'\t<SetTextureImage Path="{self.res(tex_name)}" Format="G_IM_FMT_RGBA" Size="G_IM_SIZ_16b_LOAD_BLOCK" Width="1"/>',
                       '\t<SetTile Format="G_IM_FMT_RGBA" Size="G_IM_SIZ_16b_LOAD_BLOCK" Line="0" TMem="0" Tile="7" Palette="0" '
@@ -115,9 +120,7 @@ class Writer:
                       f'\t<SetTileSize T="0" Uls="0" Ult="0" Lrs="{(w - 1) << 2}" Lrt="{(h - 1) << 2}"/>']
         else:
             lines += ['\t<SetCombineLERP A0="G_CCMUX_0" B0="G_CCMUX_0" C0="G_CCMUX_0" D0="G_CCMUX_SHADE" '
-                      'Aa0="G_ACMUX_SHADE" Ab0="G_ACMUX_0" Ac0="G_ACMUX_PRIMITIVE" Ad0="G_ACMUX_0" '
-                      'A1="G_CCMUX_0" B1="G_CCMUX_0" C1="G_CCMUX_0" D1="G_CCMUX_SHADE" '
-                      'Aa1="G_ACMUX_SHADE" Ab1="G_ACMUX_0" Ac1="G_ACMUX_PRIMITIVE" Ad1="G_ACMUX_0"/>',
+                      'Aa0="G_ACMUX_SHADE" Ab0="G_ACMUX_0" Ac0="G_ACMUX_PRIMITIVE" Ad0="G_ACMUX_0" ' + cycle2,
                       '\t<Texture S="65535" T="65535" Level="0" Tile="0" On="0"/>']
         lines += ['\t<EndDisplayList/>', '</DisplayList>', '']
         self.write(name, "\n".join(lines))
@@ -245,26 +248,23 @@ def export(rom, object_name, name, mod_dir):
                 out.append(to_model(x, y, z) + (clamp16(s * su), clamp16(t * sv), r, g, b, a))
             dl.append(f'\t<CallDisplayList Path="{writer.res(mat_name)}"/>')
             dl += tri_lists(f"pose{p}_g{gi}_vtx", out, writer)
-        for k, geo in enumerate(wheel_geo):
-            if not geo[2]["steers"]:  # rear wheels ride with the body
-                dl += wheel_lines(k, geo, (0, 0, 0))
         dl += ['\t<PipeSync/>', '\t<EndDisplayList/>', '</DisplayList>', '']
         writer.write(f"pose{p}", "\n".join(dl))
 
-    # Front (steering) wheels: one display list each, built around the wheel
-    # centre so the engine can turn it (DKR steers attach points 2 and 3).
-    front = []
+    # Wheels: one display list each, built around the wheel centre so the
+    # engine can roll it (about its axle, x) and steer the front ones (DKR
+    # steers attach points 2 and 3).
+    wheels = []
     for k, geo in enumerate(wheel_geo):
-        if geo[2]["steers"]:
-            centre = to_model(*geo[2]["position"])
-            dl = ['<DisplayList Version="0">'] + wheel_lines(k, geo, centre)
-            dl += ['\t<PipeSync/>', '\t<EndDisplayList/>', '</DisplayList>', '']
-            writer.write(f"wheel{k}", "\n".join(dl))
-            front.append({"dl": f"wheel{k}", "centre": list(centre)})
+        centre = to_model(*geo[2]["position"])
+        dl = ['<DisplayList Version="0">'] + wheel_lines(k, geo, centre)
+        dl += ['\t<PipeSync/>', '\t<EndDisplayList/>', '</DisplayList>', '']
+        writer.write(f"wheel{k}", "\n".join(dl))
+        wheels.append({"dl": f"wheel{k}", "centre": list(centre), "steers": bool(geo[2]["steers"])})
 
     info = {"object": object_name, "poses": POSE_FRAMES, "pose_count": len(POSE_FRAMES),
             "straight_pose": POSE_FRAMES.index(40), "world_scale": WORLD_SCALE, "ground_dkr_units": ground,
-            "front_wheels": front,
+            "wheels": wheels,
             "space": "DKR units, Y up, facing +Z, tyre bottom at y = 0"}
     with open(os.path.join(out_dir, "model.json"), "w") as fh:
         json.dump(info, fh, indent=1)

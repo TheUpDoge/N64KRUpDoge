@@ -46,15 +46,16 @@ extern "C" const N64krRacerModel* n64kr_racer3d_model(const char* base) {
             entry.poses[p] = dir + "/pose" + std::to_string(p);
             m.poseDl[p] = entry.poses[p].c_str();
         }
-        for (const auto& wheel : json.value("front_wheels", nlohmann::json::array())) {
-            if (m.frontWheelCount >= N64KR_RACER3D_MAX_WHEELS) {
+        for (const auto& wheel : json.value("wheels", nlohmann::json::array())) {
+            if (m.wheelCount >= N64KR_RACER3D_MAX_WHEELS) {
                 break;
             }
-            s32 k = m.frontWheelCount++;
+            s32 k = m.wheelCount++;
             entry.wheels[k] = dir + "/" + wheel.value("dl", std::string());
-            m.frontWheelDl[k] = entry.wheels[k].c_str();
+            m.wheelDl[k] = entry.wheels[k].c_str();
+            m.wheelSteers[k] = wheel.value("steers", false) ? 1 : 0;
             for (s32 i = 0; i < 3; i++) {
-                m.frontWheelCentre[k][i] = wheel["centre"][i].get<f32>();
+                m.wheelCentre[k][i] = wheel["centre"][i].get<f32>();
             }
         }
         m.ok = (m.poseCount > 0);

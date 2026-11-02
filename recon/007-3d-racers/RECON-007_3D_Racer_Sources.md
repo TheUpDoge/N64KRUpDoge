@@ -54,3 +54,10 @@ User playtest of v1: banana spin works (it rotates the kart); Boo did nothing; t
 - Boo / Lakitu fizzle / battle bomb or loss: the model's materials take alpha = texel × primitive alpha and set no render mode; the engine sets primitive alpha and render mode as `render_kart` does for sprites (Boo: `player->alpha` on the player's own screen, `gPlayerOtherScreensAlpha` on others; MK64's translucent mode).
 - Front wheels: exported as separate display lists around their centres (`wheel2`, `wheel3`), listed in `model.json` with their centres; the engine multiplies a steering matrix onto the kart matrix (y rotation, up to 7000/65536 of a turn at full visual turn, DKR's stick × 100). `model.json` is read at runtime (`racer3d_model.cpp`, nlohmann json), so scale and pose count are no longer hard-coded in C.
 - [VERIFIED: build] Debug: 0 errors. In-game check pending. Not yet: star / lightning colour effects on the model, slope tilt, wheel spin.
+
+## SLICE-10 v3 (built)
+User playtest of v2 (screenshots): turbo afterimage works; front wheels turn only slightly; tyres still large, don't roll; Diddy about twice MK64 racer size; star made sparks but no colour flash; dust puffs sit inside the oversized tyres.
+- Scale: 0.12 → 0.06 world units per DKR unit. Tyres: 0.6× radius, 0.45× width of the sprite size.
+- All four wheels are separate display lists around their centres (`model.json` `wheels` with `steers` flags); the engine draws each with v · roll(x) · steer(y) + centre. Roll angle = `tyreSpeed << 6` (tyreSpeed is MK64's sprite wheel counter, 0..0x3FF per cycle, `kart_dma.c`). Steering reaches DKR's full lock (7000/65536 turn) at a third of the visual-turn clamp (the visual turn stays small in normal driving).
+- Colour effects: materials are 2-cycle; cycle 2 is MK64's racer colour formula (1 − env) × colour + prim (`func_8004B614`), with the engine setting prim = gPlayerRed/Green/BlueEffect, env = gPlayerCyan/Magenta/YellowEffect, prim alpha = alpha. Render modes G_RM_PASS + TEX_EDGE2 (opaque) or + render_kart's translucent mode.
+- [VERIFIED: build] Debug: 0 errors. In-game check pending.

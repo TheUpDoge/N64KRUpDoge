@@ -12,22 +12,25 @@
 // Largest visual turn MK64 gives a kart: unk_0C0 is clamped to +-0x1C70
 // (player_controller.c func_8002AE38).
 #define FULL_TURN 0x1C70
-// Front wheel lock at full turn: DKR turns them by stick x * 100, stick up to
-// ~70 (src/racer.c), i.e. 7000 / 65536 of a turn.
+// Front wheel lock: DKR turns them by stick x * 100, stick up to ~70
+// (src/racer.c), i.e. 7000 / 65536 of a turn. The visual turn rarely nears its
+// clamp in normal driving (front wheels barely moved in the user's test), so
+// it reaches full lock at a third of it.
 #define WHEEL_LOCK 7000
+#define WHEEL_LOCK_AT_TURN (1.0f / 3.0f)
+// Wheel roll: tyreSpeed counts 0..0x3FF per sprite spin cycle (kart_dma.c,
+// wheel frame = tyreSpeed >> 8); one cycle = one wheel turn here.
+#define WHEEL_ROLL_SHIFT 6
 #define BOOST_ALPHA 0x40 // func_80025DE8's afterimage alpha
 
-// Render modes from render_kart (src/render_player.c): the translucent one is
-// what MK64 uses for Boo and the Lakitu fizzle.
-#define RM_TRANSLUCENT_1                                                                                         \
-    (AA_EN | Z_CMP | Z_UPD | IM_RD | CVG_DST_WRAP | ZMODE_XLU | CVG_X_ALPHA | FORCE_BL |                           \
-     GBL_c1(G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_1MA))
+// Render modes (the model's materials are 2-cycle; the first cycle passes
+// through). The translucent one is render_kart's for Boo and the Lakitu fizzle.
 #define RM_TRANSLUCENT_2                                                                                         \
     (AA_EN | Z_CMP | Z_UPD | IM_RD | CVG_DST_WRAP | ZMODE_XLU | CVG_X_ALPHA | FORCE_BL |                           \
      GBL_c2(G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_1MA))
 
-// Front wheel matrices (model space, multiplied onto the kart matrix): one set
-// for the kart, one for its boost afterimage, per player per screen.
+// Wheel matrices (model space, multiplied onto the kart matrix): one set for
+// the kart, one for its boost afterimage, per player per screen.
 static Mtx sWheelMtx[2][NUM_PLAYERS * 4][N64KR_RACER3D_MAX_WHEELS];
 
 static const N64krRacerModel* model_for(const Player* player) {
@@ -55,26 +58,38 @@ static void kart_matrix(Mat4 mtx, const N64krRacerModel* model, const Player* pl
     mtxf_scale(mtx, model->scale * gCharacterSize[n64kr_char_body(player->characterId)] * player->size);
 }
 
-// Body pose and front wheels, under the kart matrix already loaded.
-static void draw_model(const N64krRacerModel* model, const Player* player, s32 slot, s32 set, u8 alpha,
-                       s32 translucent) {
+// Body pose and wheels, under the kart matrix already loaded.
+static void draw_model(const N64krRacerModel* model, const Player* player, s32 playerId, s32 slot, s32 set,
+                       u8 alpha, s32 translucent) {
     Gfx* dl;
     f32 turn = visual_turn(player);
+    f32 lock = turn / WHEEL_LOCK_AT_TURN;
     s32 pose;
     s32 k;
+    // Roll about the axle (x): rows of the row-vector rotation (N64 matrices
+    // multiply v * M), positive = the tyre top moving forward (+Z).
+    f32 rs = sins((u16) (player->tyreSpeed << WHEEL_ROLL_SHIFT));
+    f32 rc = coss((u16) (player->tyreSpeed << WHEEL_ROLL_SHIFT));
+
+    lock = (lock > 1.0f) ? 1.0f : ((lock < -1.0f) ? -1.0f : lock);
 
     // Poses run full right .. straight .. full left; positive unk_0C0 turns
     // the nose toward -X, the kart's right.
     pose = model->straightPose - (s32) (turn * model->straightPose + ((turn >= 0.0f) ? 0.5f : -0.5f));
     pose = (pose < 0) ? 0 : ((pose >= model->poseCount) ? model->poseCount - 1 : pose);
 
+    // MK64's racer colour effect (func_8004B614): prim = (R, G, B) added, env
+    // = (C, M, Y) subtracted, prim alpha = the racer's alpha.
     gDPPipeSync(gDisplayListHead++);
-    gDPSetPrimColor(gDisplayListHead++, 0, 0, 255, 255, 255, alpha);
+    gDPSetPrimColor(gDisplayListHead++, 0, 0, gPlayerRedEffect[playerId], gPlayerGreenEffect[playerId],
+                    gPlayerBlueEffect[playerId], alpha);
+    gDPSetEnvColor(gDisplayListHead++, gPlayerCyanEffect[playerId], gPlayerMagentaEffect[playerId],
+                   gPlayerYellowEffect[playerId], 0xFF);
     if (translucent) {
         gDPSetAlphaCompare(gDisplayListHead++, G_AC_NONE);
-        gDPSetRenderMode(gDisplayListHead++, RM_TRANSLUCENT_1, RM_TRANSLUCENT_2);
+        gDPSetRenderMode(gDisplayListHead++, G_RM_PASS, RM_TRANSLUCENT_2);
     } else {
-        gDPSetRenderMode(gDisplayListHead++, G_RM_AA_ZB_TEX_EDGE, G_RM_AA_ZB_TEX_EDGE2);
+        gDPSetRenderMode(gDisplayListHead++, G_RM_PASS, G_RM_AA_ZB_TEX_EDGE2);
     }
 
     dl = (Gfx*) ResourceGetDataByName(model->poseDl[pose]);
@@ -82,25 +97,29 @@ static void draw_model(const N64krRacerModel* model, const Player* player, s32 s
         gSPDisplayList(gDisplayListHead++, dl);
     }
 
-    // Front wheels: steer about their own centre (y rotation, the
-    // mtxf_translate_rotate convention), same sign as the body turn.
-    for (k = 0; k < model->frontWheelCount; k++) {
+    // Wheels: v * roll(x) * steer(y, front wheels; the mtxf_translate_rotate
+    // convention, same sign as the body turn) + centre.
+    for (k = 0; k < model->wheelCount; k++) {
         Mat4 m = { { 0 } };
-        f32 s = sins((u16) (s16) -(turn * WHEEL_LOCK));
-        f32 c = coss((u16) (s16) -(turn * WHEEL_LOCK));
+        f32 ss = model->wheelSteers[k] ? sins((u16) (s16) -(lock * WHEEL_LOCK)) : 0.0f;
+        f32 sc = model->wheelSteers[k] ? coss((u16) (s16) -(lock * WHEEL_LOCK)) : 1.0f;
 
-        dl = (Gfx*) ResourceGetDataByName(model->frontWheelDl[k]);
+        dl = (Gfx*) ResourceGetDataByName(model->wheelDl[k]);
         if (dl == NULL) {
             continue;
         }
-        m[0][0] = c;
-        m[0][2] = -s;
-        m[1][1] = 1.0f;
-        m[2][0] = s;
-        m[2][2] = c;
-        m[3][0] = model->frontWheelCentre[k][0];
-        m[3][1] = model->frontWheelCentre[k][1];
-        m[3][2] = model->frontWheelCentre[k][2];
+        // roll = [1 0 0; 0 rc rs; 0 -rs rc], steer = [sc 0 -ss; 0 1 0; ss 0 sc]
+        m[0][0] = sc;
+        m[0][2] = -ss;
+        m[1][0] = rs * ss;
+        m[1][1] = rc;
+        m[1][2] = rs * sc;
+        m[2][0] = rc * ss;
+        m[2][1] = -rs;
+        m[2][2] = rc * sc;
+        m[3][0] = model->wheelCentre[k][0];
+        m[3][1] = model->wheelCentre[k][1];
+        m[3][2] = model->wheelCentre[k][2];
         m[3][3] = 1.0f;
         convert_to_fixed_point_matrix(&sWheelMtx[set][slot][k], m);
         gSPMatrix(gDisplayListHead++, &sWheelMtx[set][slot][k], G_MTX_PUSH | G_MTX_MUL | G_MTX_MODELVIEW);
@@ -137,7 +156,7 @@ s32 n64kr_racer3d_draw(Player* player, s8 playerId, s8 screenId, Vec3f position)
     kart_matrix(mtx, model, player, position);
     convert_to_fixed_point_matrix(GetKartMatrix(slot), mtx);
     gSPMatrix(gDisplayListHead++, GetKartMatrix(slot), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    draw_model(model, player, slot, 0, alpha, translucent);
+    draw_model(model, player, playerId, slot, 0, alpha, translucent);
     return 1;
 }
 
@@ -151,7 +170,7 @@ s32 n64kr_racer3d_draw_boost(Player* player, s8 playerId, s8 screenId, Vec3f pos
     }
     kart_matrix(mtx, model, player, position);
     AddEffectMatrix(mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    draw_model(model, player, slot, 1, BOOST_ALPHA, true);
+    draw_model(model, player, playerId, slot, 1, BOOST_ALPHA, true);
     gMatrixEffectCount += 1;
     return 1;
 }
