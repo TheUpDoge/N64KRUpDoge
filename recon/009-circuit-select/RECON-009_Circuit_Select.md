@@ -24,3 +24,7 @@ A circuit selection page so N64KR's tracks can be raced without Debug Mode. User
 
 ## Checks for the in-game test
 Banner and text placement on the cup select; GP through all 4 Rare Cup tracks (race order, results screen cup name); VS; Time Trials never offers the Rare Cup; Battle unchanged; Fossil Canyon start grid and item boxes.
+
+## First in-game test (user, 2026-11-02) [VERIFIED: user screenshot]
+- The Rare Cup page works: banner, the four track names in MK64's boxes, preview box with the course and its game. GP runs.
+- Fossil Canyon: laps didn't register properly and positions jumped (1st to 8th). Cause (plot of path, checkpoints and grid): DKR keeps a checkpoint set per vehicle (Fossil Canyon: car indices 0–34, another set 0–56 in steps of 2). `mk64_layout` filled indices missing from the car set with the other set's, so after car checkpoint 34 the path ran on through the other set's 36–56: a second, partial lap from mid-course (1,091 points; a jump across the infield). Fix: one vehicle's set only (the car's if it has one). Then the start line: placed from the front grid row toward checkpoint 0, it landed past the last checkpoint, so the path crossed the line forward and back. It is now placed on the lap itself (the checkpoint segment nearest the front row, 20 units ahead, stepping onto later segments past a checkpoint) and the checkpoints start right after it. Fossil Canyon: 720 points, one lap, grid z 15..61 (all behind the line); Ancient Lake: 469 points, grid z 21..56 (it moved ~1 path point; re-exported). Retest pending.

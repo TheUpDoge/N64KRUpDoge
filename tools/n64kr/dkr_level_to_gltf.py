@@ -522,20 +522,59 @@ def mk64_layout(objects):
     and the path gates in DKR coordinates: start line, then the checkpoints."""
     import math
 
+    # One vehicle's checkpoints only: each vehicle has its own numbered set
+    # (Fossil Canyon: car 0..34, the other set 0..56 in steps of 2), and
+    # filling the car's missing indices from another set appended a second,
+    # partial lap to the path (laps and positions broke). Car (0) if it has a
+    # set, else the vehicle with the most.
     cps = [c for c in objects["checkpoint"] if c["alt"] == 0]
+    counts = {}
+    for c in cps:
+        counts[c["vehicle"]] = counts.get(c["vehicle"], 0) + 1
+    vehicle = 0 if counts.get(0, 0) >= 3 else max(counts, key=counts.get, default=0)
     by_index = {}
-    for c in sorted(cps, key=lambda c: c["vehicle"] != 0):
-        by_index.setdefault(c["index"], c)
+    for c in cps:
+        if c["vehicle"] == vehicle:
+            by_index.setdefault(c["index"], c)
     ordered = [by_index[i] for i in sorted(by_index)]
     grid = sorted(objects["setuppoint"], key=lambda e: e["racer"])
     if len(ordered) < 3 or len(grid) < 2:
         sys.exit("Not enough checkpoints / start positions to build a path.")
-    # Start line: just ahead of the front grid row (racers 0 and 1), towards checkpoint 0.
+    # Start line: on the lap, just ahead of the front grid row (racers 0 and
+    # 1): on the checkpoint-to-checkpoint segment nearest that row, and the
+    # path starts there and runs through the following checkpoints. (Aiming
+    # at checkpoint 0 from the grid put the line past Fossil Canyon's last
+    # checkpoint, so the path ran forward over the line and back.)
     front = {k: (grid[0][k] + grid[1][k]) / 2.0 for k in ("x", "y", "z")}
-    fx, fz = ordered[0]["x"] - front["x"], ordered[0]["z"] - front["z"]
-    length = math.hypot(fx, fz)
-    ahead = (START_LINE_AHEAD / DKR_TO_MK64_SCALE) / length
-    start = {"x": front["x"] + fx * ahead, "y": front["y"], "z": front["z"] + fz * ahead}
+    n = len(ordered)
+
+    def segment(i):
+        a, b = ordered[i % n], ordered[(i + 1) % n]
+        dx, dz = b["x"] - a["x"], b["z"] - a["z"]
+        return a, dx, dz, math.hypot(dx, dz)
+
+    best = None
+    for i in range(n):
+        a, dx, dz, length = segment(i)
+        if length == 0:
+            continue
+        t = ((front["x"] - a["x"]) * dx + (front["z"] - a["z"]) * dz) / (length * length)
+        tc = min(1.0, max(0.0, t))
+        d = math.hypot(front["x"] - (a["x"] + dx * tc), front["z"] - (a["z"] + dz * tc))
+        key = (d, tc != t)  # on a tie (the row level with a checkpoint), the segment it is really on
+        if best is None or key < best[0]:
+            best = (key, i, tc)
+    _, i, t = best
+    # Walk START_LINE_AHEAD along the lap, onto later segments if it passes a checkpoint.
+    a, fx, fz, length = segment(i)
+    along = t * length + START_LINE_AHEAD / DKR_TO_MK64_SCALE
+    while along > length and length > 0:
+        along -= length
+        i += 1
+        a, fx, fz, length = segment(i)
+    t = along / length if length else 0.0
+    start = {"x": a["x"] + fx * t, "y": front["y"], "z": a["z"] + fz * t}
+    ordered = [ordered[(i + 1 + k) % n] for k in range(n)]  # next checkpoint first, the one behind the line last
     angle = math.atan2(-fx, -fz)
     ca, sa = math.cos(angle), math.sin(angle)
 
