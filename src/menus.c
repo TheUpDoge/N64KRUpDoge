@@ -1544,16 +1544,9 @@ GLOBAL_ASM("asm/non_matchings/menus/main_menu_act.s")
  * hovered character at grid position `gridId`
  */
 bool is_character_spot_free(s32 gridId) {
-    if (CVarGetInteger("gUniqueCharacterSelections", true) == false) {
-        return true;
-    }
-  
-    for (size_t i = 0; i < ARRAY_COUNT(gCharacterGridSelections); i++) {
-        if (gridId == gCharacterGridSelections[i]) {
-            return false;
-        }
-    }
-    return true;
+    // N64KR HOOK: pages (n64kr/character_select.c); same rule per page, and
+    // empty cells on a page can't be landed on.
+    return n64kr_grid_spot_free(gridId);
 }
 
 // Grid positions are from right to left, then top to bottom
@@ -1743,7 +1736,7 @@ void player_select_menu_act(struct Controller* controller, u16 controllerIdx) {
         }
         // L800B3B24
         if (gCharacterGridSelections[controllerIdx] != 0) {
-            gCharacterSelections[controllerIdx] = sCharacterGridOrder[gCharacterGridSelections[controllerIdx] - 1];
+            gCharacterSelections[controllerIdx] = n64kr_grid_commit(controllerIdx, gCharacterGridSelections[controllerIdx]); // N64KR HOOK
         }
     }
     // L800B3B44
@@ -1997,6 +1990,7 @@ void load_menu_states(s32 menuSelection) {
                             gCharacterGridIsSelected[i] = false;
                             gCharacterSelections[i] = i;
                         }
+                        n64kr_grid_reset(); // N64KR HOOK
                         play_sound2(SOUND_MENU_SELECT_PLAYER);
                     } else {
                         func_800CA008(0, 0);

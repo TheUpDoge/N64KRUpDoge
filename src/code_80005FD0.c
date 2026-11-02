@@ -1,5 +1,6 @@
 #include <libultraship.h>
 #include "n64kr/character.h" // N64KR HOOK
+#include "n64kr/character_select.h" // N64KR HOOK
 #include <macros.h>
 #include <defines.h>
 #include <stubs.h>
@@ -3573,7 +3574,7 @@ void init_players(void) {
 
         if (gModeSelection == GRAND_PRIX) {
             for (i = 0; i < 2; i++) {
-                D_80163344[i] = gGetPlayerByCharacterId[D_80163348[i]];
+                D_80163344[i] = gGetPlayerByCharacterId[n64kr_rival_character(D_80163348[i])]; // N64KR HOOK
                 D_80163330[D_80163344[i]] = 1;
                 D_8016334C[D_80163344[i]] = i;
             }

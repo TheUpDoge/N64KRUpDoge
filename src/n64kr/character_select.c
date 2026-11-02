@@ -6,38 +6,173 @@
 #include "main.h"
 #include "menus.h"
 #include "menu_items.h"
+#include "racing/math_util.h"
 #include "n64kr/character.h"
 #include "n64kr/character_select.h"
 #include "n64kr/vehicle_select.h"
 
-// Alternate character per human player; -1 = none (race as the stock cell).
-static s32 sAlternate[N64KR_MAX_HUMANS] = { -1, -1, -1, -1 };
+#define GRID_PAGES 2
+#define GRID_CELLS 8
 
-// Character cells on the select screen are 0x40 x 0x4C (src/menu_items.c); the
-// vehicle label sits at the bottom (vehicle_select.c), the name at the top.
-#define CELL_WIDTH 0x40
-#define NAME_ROW_OFFSET 0x04
+// Page 1, the DKR page: N64KR character per cell, -1 = empty.
+static const s32 sDkrPage[GRID_CELLS] = { N64KR_CHAR_DIDDY, -1, -1, -1, -1, -1, -1, -1 };
 
-void n64kr_character_select_input(u16 controllerIdx, u16 buttonsPressed) {
-    if ((controllerIdx >= N64KR_MAX_HUMANS) || !(buttonsPressed & L_TRIG)) {
-        return;
+static s32 sViewPage = 0;                       // page the grid is showing
+static s32 sPlayerPage[N64KR_MAX_HUMANS];       // page each human's cell is on
+static s32 sAlternate[N64KR_MAX_HUMANS] = { -1, -1, -1, -1 }; // page character; -1 = stock
+static s32 sCurrentController = 0;              // controller the movement code is handling
+static s8 sCellShownPage[GRID_CELLS];           // page each cell's face sequence shows
+static s32 sCpuSeatTaken = -1;                  // stock id a DKR CPU replaced, -1 = none
+
+// Diddy's cell: face and blank nameplate from his mod
+// (tools/n64kr/blender_dkr_racer_hud.py); the name is printed over the plate.
+static const char sDiddyFaceTexture[] = "__OTR__textures/player_selection/diddy_face_00";
+static const char sDiddyPlateTexture[] = "__OTR__textures/texture_tkmk00/texture_name_diddy";
+static MenuTexture sDiddyFace[] = { { 0, (u64*) sDiddyFaceTexture, 64, 64, 0, 0, 0 },
+                                    { 0, NULL, 0, 0, 0, 0, 0 } };
+static MenuTexture sDiddyPlate[] = { { 0, (u64*) sDiddyPlateTexture, 64, 12, 0, 64, 0 },
+                                     { 0, NULL, 0, 0, 0, 0, 0 } };
+static MkAnimation sDiddyFaceAnim[] = { { sDiddyFace, 100 }, { NULL, 0 } };
+
+// Character on (page, cell 1..8); -1 = nothing there.
+static s32 page_cell_character(s32 page, s32 gridId) {
+    if ((gridId < 1) || (gridId > GRID_CELLS)) {
+        return -1;
     }
-    sAlternate[controllerIdx] = (sAlternate[controllerIdx] < 0) ? N64KR_CHAR_DIDDY : -1;
-    play_sound2(SOUND_MENU_CURSOR_MOVE);
+    if (page == 0) {
+        return sCharacterGridOrder[gridId - 1];
+    }
+    return sDkrPage[gridId - 1];
 }
 
-void n64kr_character_select_draw(s32 column, s32 row, s32 playerIdx) {
-    const N64krCharacter* c;
+static s32 spot_free_on_page(s32 page, s32 gridId) {
+    size_t i;
 
-    if ((playerIdx < 0) || (playerIdx >= N64KR_MAX_HUMANS) || (sAlternate[playerIdx] < 0)) {
+    if (page_cell_character(page, gridId) < 0) {
+        return false;
+    }
+    if (CVarGetInteger("gUniqueCharacterSelections", true) == false) {
+        return true;
+    }
+    for (i = 0; i < N64KR_MAX_HUMANS; i++) {
+        if ((gridId == gCharacterGridSelections[i]) && (sPlayerPage[i] == page)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void n64kr_grid_reset(void) {
+    s32 i;
+
+    sViewPage = 0;
+    for (i = 0; i < N64KR_MAX_HUMANS; i++) {
+        sPlayerPage[i] = 0;
+        sAlternate[i] = -1;
+    }
+    for (i = 0; i < GRID_CELLS; i++) {
+        sCellShownPage[i] = 0;
+    }
+}
+
+s32 n64kr_grid_spot_free(s32 gridId) {
+    return spot_free_on_page(sPlayerPage[sCurrentController], gridId);
+}
+
+void n64kr_character_select_input(u16 controllerIdx, u16 buttonsPressed) {
+    // Entry cells per page edge: same row as the cell the player left first.
+    static const s32 fromLeftTop[] = { 1, 5, 2, 6, 3, 7, 4, 8 };
+    static const s32 fromLeftBottom[] = { 5, 1, 6, 2, 7, 3, 8, 4 };
+    static const s32 fromRightTop[] = { 4, 8, 3, 7, 2, 6, 1, 5 };
+    static const s32 fromRightBottom[] = { 8, 4, 7, 3, 6, 2, 5, 1 };
+    const s32* candidates;
+    s32 cell, page, target, i;
+
+    if (controllerIdx >= N64KR_MAX_HUMANS) {
         return;
     }
-    c = n64kr_get_character(sAlternate[playerIdx]);
-    if (c == NULL) {
+    sCurrentController = controllerIdx;
+    if (gCharacterGridIsSelected[controllerIdx]) {
         return;
     }
-    set_text_color(TEXT_RED);
-    print_text1_center_mode_1(column + (CELL_WIDTH / 2), row + NAME_ROW_OFFSET, (char*) c->name, 0, 0.6f, 0.6f);
+    cell = gCharacterGridSelections[controllerIdx];
+    page = sPlayerPage[controllerIdx];
+    if ((buttonsPressed & CONT_RIGHT) && ((cell == 4) || (cell == 8)) && (page + 1 < GRID_PAGES)) {
+        page += 1;
+        candidates = (cell == 4) ? fromLeftTop : fromLeftBottom;
+    } else if ((buttonsPressed & CONT_LEFT) && ((cell == 1) || (cell == 5)) && (page > 0)) {
+        page -= 1;
+        candidates = (cell == 1) ? fromRightTop : fromRightBottom;
+    } else {
+        return;
+    }
+    target = 0;
+    for (i = 0; i < GRID_CELLS; i++) {
+        if (spot_free_on_page(page, candidates[i])) {
+            target = candidates[i];
+            break;
+        }
+    }
+    if (target == 0) {
+        return; // the page has no free cell for this player
+    }
+    sPlayerPage[controllerIdx] = page;
+    sViewPage = page;
+    gCharacterGridSelections[controllerIdx] = target;
+    play_sound2(0x49008000); // the grid's cursor-move sound (menus.c)
+}
+
+s32 n64kr_grid_commit(s32 playerIdx, s32 gridId) {
+    s32 pageCharacter;
+
+    if ((playerIdx < 0) || (playerIdx >= N64KR_MAX_HUMANS) || (gridId < 1) || (gridId > GRID_CELLS)) {
+        return MARIO;
+    }
+    pageCharacter = page_cell_character(sPlayerPage[playerIdx], gridId);
+    sAlternate[playerIdx] = ((sPlayerPage[playerIdx] != 0) && (pageCharacter >= 0)) ? pageCharacter : -1;
+    // Menu bookkeeping (CPU rosters, GP rivals) keeps the stock id of the
+    // same cell; only the spawned racer gets the page character's id.
+    return sCharacterGridOrder[gridId - 1];
+}
+
+s32 n64kr_grid_cell_update(MenuItem* item, s32 cell) {
+    if ((cell < 0) || (cell >= GRID_CELLS)) {
+        return 0;
+    }
+    if (sCellShownPage[cell] != sViewPage) {
+        sCellShownPage[cell] = sViewPage;
+        if (sViewPage == 0) {
+            item->subState = 0; // restart the stock idle/blink state machine
+            func_8009A594(item->D_8018DEE0_index, 0, D_800E8360[cell]);
+        } else if ((sViewPage == 1) && (cell == 0)) {
+            func_8009A594(item->D_8018DEE0_index, 0, sDiddyFaceAnim);
+        }
+    }
+    return sViewPage != 0;
+}
+
+s32 n64kr_grid_cell_draw(MenuItem* item, s32 cell) {
+    if (cell == 0) { // one label per frame: the page being shown
+        set_text_color((sViewPage == 0) ? TEXT_BLUE : TEXT_YELLOW);
+        print_text1_center_mode_1(0xA0, 0x1C, (sViewPage == 0) ? "MK64" : "DKR", 0, 0.5f, 0.5f);
+    }
+    if (sViewPage == 0) {
+        return 0;
+    }
+    if ((cell == 0) && (sDkrPage[0] >= 0)) {
+        func_800A12BC(item, sDiddyPlate);
+        func_8009A76C(item->D_8018DEE0_index, item->column, item->row, item->param1);
+        set_text_color(TEXT_YELLOW);
+        print_text1_center_mode_1(item->column + 0x20, item->row + 0x40, "DIDDY", 0, 0.45f, 0.45f);
+    }
+    return 1; // empty cells draw nothing
+}
+
+s32 n64kr_grid_player_on_view(s32 playerIdx) {
+    if ((playerIdx < 0) || (playerIdx >= N64KR_MAX_HUMANS)) {
+        return true;
+    }
+    return sPlayerPage[playerIdx] == sViewPage;
 }
 
 s32 n64kr_human_character(s32 playerIdx) {
@@ -62,6 +197,27 @@ u16 n64kr_spawn_character(s32 playerIndex, u16 characterId, s32 playerType) {
         return characterId;
     }
     return (u16) n64kr_human_character(playerIndex);
+}
+
+void n64kr_cpu_roster(s16* roster, s32 count) {
+    s32 i;
+
+    sCpuSeatTaken = -1;
+    if (count < 1) {
+        return;
+    }
+    for (i = 0; (i < gPlayerCount) && (i < N64KR_MAX_HUMANS); i++) {
+        if (n64kr_human_character(i) == N64KR_CHAR_DIDDY) {
+            return;
+        }
+    }
+    i = random_int((u16) count);
+    sCpuSeatTaken = roster[i];
+    roster[i] = N64KR_CHAR_DIDDY;
+}
+
+s32 n64kr_rival_character(s32 stockId) {
+    return ((sCpuSeatTaken >= 0) && (stockId == sCpuSeatTaken)) ? N64KR_CHAR_DIDDY : stockId;
 }
 
 s32 n64kr_gp_seed_character(s32 index) {

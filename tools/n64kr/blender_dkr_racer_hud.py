@@ -13,7 +13,13 @@ blender_dkr_racer_sprites.py for why new paths need a stub):
                                           3/4 view) inside the template's frame
   common_texture_minimap_kart_<hud name>  8x8: template kart icon recoloured
   common_texture_minimap_<hud name>       8x8: template progress dot
-The engine finds them through the registry's hudName (src/n64kr/character.c).
+and into <mod dir>/textures/player_selection|texture_tkmk00/:
+  diddy_face_00 (named <hud name>)        64x64: select screen face
+  texture_name_<hud name>                 64x12: blank select nameplate (the
+                                          page draws the name over it in text)
+The engine finds the first through the registry's hudName
+(src/n64kr/character.c); the select page draws the last two
+(src/n64kr/character_select.c).
 Built from ROM data: keep under build/, never commit.
 """
 import math
@@ -146,14 +152,27 @@ scene.render.image_settings.file_format = "PNG"
 scene.render.image_settings.color_mode = "RGBA"
 scene.render.image_settings.color_depth = "8"
 scene.view_settings.view_transform = "Standard"
-render_path = os.path.join(racer_dir, "frames", "portrait_render.png")
-os.makedirs(os.path.dirname(render_path), exist_ok=True)
-scene.render.filepath = render_path
-bpy.ops.render.render(write_still=True)
 
-img = bpy.data.images.load(render_path)
-rw, rh = img.size
-src = list(img.pixels)  # floats, bottom row first
+
+def render(file, raise_frames=0.0):
+    """Render the head; raise_frames > 0 shows it higher in the frame (the
+    camera moves down along its own up axis by that share of the view)."""
+    up = cam.rotation_euler.to_matrix() @ mathutils.Vector((0, 1, 0))
+    home = cam.location.copy()
+    cam.location = home - up * cam_data.ortho_scale * raise_frames
+    path = os.path.join(racer_dir, "frames", file)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    scene.render.filepath = path
+    bpy.ops.render.render(write_still=True)
+    cam.location = home
+    image = bpy.data.images.load(path)
+    return image.size[0], image.size[1], list(image.pixels)  # floats, bottom row first
+
+
+# Race portrait: face a third of the frame higher than centred (user request:
+# the centred head read low in the 26x26 window).
+PORTRAIT_RAISE = 1.0 / 3.0
+rw, rh, src = render("portrait_render.png", PORTRAIT_RAISE)
 
 
 def sample(x, y):  # box filter SUPERSAMPLE x SUPERSAMPLE, premultiplied
@@ -196,3 +215,42 @@ template_dot = {"donkey_kong": "dk"}.get(template, template)
 w, h, dot = decode(f"textures/common_data/common_texture_minimap_{template_dot}")
 write(f"common_texture_minimap_{hud_name}", w, h, dot)
 print(f"[n64kr] HUD textures for '{hud_name}' in {out_dir}")
+
+# --- select screen face: the head centred, 64x64, transparent background
+FACE = 64
+rw, rh, src = render("face_render.png")
+face_dir = os.path.join(mod_dir, "textures", "player_selection")
+os.makedirs(face_dir, exist_ok=True)
+face = []  # whole render box-filtered to 64x64 (sizes need not divide)
+for y in range(FACE):
+    for x in range(FACE):
+        acc, n = [0.0, 0.0, 0.0, 0.0], 0
+        for sy in range(y * rh // FACE, max(y * rh // FACE + 1, (y + 1) * rh // FACE)):
+            for sx in range(x * rw // FACE, max(x * rw // FACE + 1, (x + 1) * rw // FACE)):
+                i = ((rh - 1 - sy) * rw + sx) * 4
+                alpha = src[i + 3]
+                for k in range(3):
+                    acc[k] += src[i + k] * alpha
+                acc[3] += alpha
+                n += 1
+        rgb = [acc[k] / acc[3] if acc[3] else 0.0 for k in range(3)]
+        face.append([round(c * 255) for c in rgb] + [round(acc[3] / n * 255)])
+out_dir = face_dir
+write(f"{hud_name}_face_00", FACE, FACE, face)
+
+# --- nameplate: the stock plate with its letters erased (the plate's
+# gradient runs horizontally; row 10 is letter-free, so it is the background
+# of every column). The select page prints the name over it in menu text
+# (src/n64kr/character_select.c); cutting MK64's embossed letters apart fails
+# because they touch through their shadows.
+plate_w, plate_h, base = decode("textures/texture_tkmk00/texture_name_toad")
+base = [list(p) for p in base]
+for y in range(1, plate_h - 1):
+    for x in range(1, plate_w - 1):
+        p, b = base[y * plate_w + x], base[10 * plate_w + x]
+        if p[3] and max(abs(p[k] - b[k]) for k in range(3)) > 7:
+            base[y * plate_w + x] = list(b)
+out_dir = os.path.join(mod_dir, "textures", "texture_tkmk00")
+os.makedirs(out_dir, exist_ok=True)
+write(f"texture_name_{hud_name}", plate_w, plate_h, base)
+print(f"[n64kr] select face and blank nameplate written")

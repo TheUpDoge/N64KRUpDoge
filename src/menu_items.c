@@ -6587,7 +6587,7 @@ void render_menus(MenuItem* arg0) {
             case CHARACTER_SELECT_MENU_3P_CURSOR:
             case CHARACTER_SELECT_MENU_4P_CURSOR:
                 temp_a0 = arg0->type - CHARACTER_SELECT_MENU_1P_CURSOR;
-                if (gCharacterGridSelections[temp_a0]) {
+                if (gCharacterGridSelections[temp_a0] && n64kr_grid_player_on_view(temp_a0)) { // N64KR HOOK
                     if (gCharacterGridIsSelected[temp_a0] == 0) {
                         temp_t2 = 0x000000FF;
                     } else {
@@ -6601,7 +6601,6 @@ void render_menus(MenuItem* arg0) {
                     }
                     render_cursor_player(arg0, temp_a0, temp_t2);
                     n64kr_vehicle_select_draw(arg0->column, arg0->row, temp_a0); // N64KR HOOK
-                    n64kr_character_select_draw(arg0->column, arg0->row, temp_a0); // N64KR HOOK
                 }
                 break;
             case CHARACTER_SELECT_MENU_OK:
@@ -6617,6 +6616,9 @@ void render_menus(MenuItem* arg0) {
             case CHARACTER_SELECT_MENU_DK:
             case CHARACTER_SELECT_MENU_WARIO:
             case CHARACTER_SELECT_MENU_BOWSER:
+                if (n64kr_grid_cell_draw(arg0, arg0->type - CHARACTER_SELECT_MENU_MARIO)) { // N64KR HOOK
+                    break;
+                }
                  func_800A12BC(arg0, D_800E7D54[arg0->type - CHARACTER_SELECT_MENU_MARIO]);
                 /* fallthrough */
             case MENU_ITEM_TYPE_0A0:
@@ -9257,7 +9259,9 @@ void handle_menus_with_pri_arg(s32 priSpecial) {
                     case CHARACTER_SELECT_MENU_DK:
                     case CHARACTER_SELECT_MENU_WARIO:
                     case CHARACTER_SELECT_MENU_BOWSER:
-                        func_800AA69C(menuItem);
+                        if (!n64kr_grid_cell_update(menuItem, menuItem->type - CHARACTER_SELECT_MENU_MARIO)) { // N64KR HOOK
+                            func_800AA69C(menuItem);
+                        }
                         break;
                 }
                 switch (gPlayerSelectMenuSelection) {
@@ -10821,7 +10825,7 @@ s32 func_800AAFCC(s32 characterId) {
     s32 ret = false;
 
     for (; someIndex < 4; someIndex++) {
-        if ((characterId + 1) == gCharacterGridSelections[someIndex]) {
+        if (((characterId + 1) == gCharacterGridSelections[someIndex]) && n64kr_grid_player_on_view(someIndex)) { // N64KR HOOK
             ret = true;
             break;
         }

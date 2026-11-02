@@ -543,6 +543,7 @@ void spawn_players_gp_one_player(f32* arg0, f32* arg1, f32 arg2) {
                 chooseCPUPlayers[i] = arr[i];
             }
         }
+        n64kr_cpu_roster(chooseCPUPlayers, 7); // N64KR HOOK
     }
 
     D_8016556E = 0;
@@ -669,6 +670,7 @@ void spawn_players_gp_two_player(f32* arg0, f32* arg1, f32 arg2) {
                 chooseCPUPlayers[i] = arr[i];
             }
         }
+        n64kr_cpu_roster(chooseCPUPlayers, 6); // N64KR HOOK
     }
 
     spawn_player(gPlayerThree, 2, arg0[D_80165270[2]], arg1[D_80165270[2]], arg2, 32768.0f, chooseCPUPlayers[0],
