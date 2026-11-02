@@ -1,6 +1,8 @@
 ![Spaghetti Kart](docs/spaghettigithublight.png#gh-light-mode-only)
 ![Spaghetti Kart](docs/spaghettigithubnight.png#gh-dark-mode-only)
 
+> **This is N64KR**, a fork of SpaghettiKart that mixes in Diddy Kong Racing (new characters, DKR hovercraft, DKR tracks, 3D racers). See **[N64KR.md](N64KR.md)** for what's new, the tools, and how to build it. The rest of this README is SpaghettiKart's.
+
 ## Website & Discord
 
 Official Website: https://www.harbourmasters.org/
