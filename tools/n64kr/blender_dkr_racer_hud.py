@@ -169,9 +169,9 @@ def render(file, raise_frames=0.0):
     return image.size[0], image.size[1], list(image.pixels)  # floats, bottom row first
 
 
-# Race portrait: face a third of the frame higher than centred (user request:
-# the centred head read low in the 26x26 window).
-PORTRAIT_RAISE = 1.0 / 3.0
+# Race portrait: face 5/24 of the frame higher than centred (user requests:
+# up a third, then down an eighth; the centred head read low in the 26x26 window).
+PORTRAIT_RAISE = 1.0 / 3.0 - 1.0 / 8.0
 rw, rh, src = render("portrait_render.png", PORTRAIT_RAISE)
 
 
