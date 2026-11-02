@@ -1,5 +1,6 @@
 #include <libultraship.h>
 #include "n64kr/character.h" // N64KR HOOK
+#include "n64kr/racer3d.h" // N64KR HOOK
 #include <macros.h>
 #include <mk64.h>
 #include <stubs.h>
@@ -1350,6 +1351,10 @@ void render_kart(Player* player, s8 playerId, s8 screenId, s8 flipOffset) {
             sp154[0] = player->pos[0] + sp148;
             sp154[2] = player->pos[2] + sp140;
         }
+    }
+    if (n64kr_racer3d_draw(player, playerId, screenId, sp154)) { // N64KR HOOK: 3D model instead of the sprite
+        FrameInterpolation_RecordCloseChild();
+        return;
     }
     load_kart_palette(player, playerId, screenId, D_801651D0[screenId][playerId]);
     gPlayerPalette = &gPlayerPalettesList[D_801651D0[screenId][playerId]][screenId][playerId];

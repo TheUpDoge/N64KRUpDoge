@@ -45,6 +45,9 @@ typedef struct {
     // Own voice clips (sound/n64kr/<voiceName>/*.wav from a mod, played by
     // n64kr/voice.cpp); NULL = MK64 voice lines of the `voice` character.
     const char* voiceName;
+    // Real-time 3D model (display lists <model3d>/pose0..8 from a mod, drawn by
+    // n64kr/racer3d.c instead of the kart sprites); NULL = sprites only.
+    const char* model3d;
 } N64krCharacter;
 
 s32 n64kr_character_count(void);

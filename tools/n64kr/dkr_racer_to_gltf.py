@@ -81,7 +81,11 @@ def animation_frames(rom, model_id, m, anim_index=0):
     return frames
 
 
-def export(rom, object_name, out_root):
+def load_racer(rom, object_name):
+    """Parse a racer from the ROM: body model 0 (triangle corners grouped by
+    material), its driving animation frames, and its wheels (attach position,
+    part scale, sprite frames as images). Shared by the glTF export and the
+    in-game model export (dkr_racer_to_model.py)."""
     headers = dkr.object_headers(rom)
     index = next((i for i, h in enumerate(headers) if h["name"] == object_name and h["behaviour"] == BHV_RACER), None)
     if index is None:
@@ -127,24 +131,13 @@ def export(rom, object_name, out_root):
                 corners.append((dkr.s16(m, vo), dkr.s16(m, vo + 2), dkr.s16(m, vo + 4), r, g, bl, a,
                                 dkr.s16(m, tr + 4 + c * 4), dkr.s16(m, tr + 6 + c * 4)))
 
-    # Driving animation as morph targets (shape keys): one per animation frame,
-    # each the offset of every corner from the base pose.
-    frames = animation_frames(rom, model_id, m)
-    targets = {}
-    for key, corners in groups.items():
-        targets[key] = [[tuple(f[v][k] - c[k] for k in range(3)) if v in f else (0.0, 0.0, 0.0)
-                         for v, c in zip(corner_vertex[key], corners)] for f in frames]
-    out_dir = os.path.join(out_root, object_name)
-    dkr.write_gltf(rom, out_dir, object_name, groups, textures, targets if frames else None,
-                   [f"anim0_f{i:02d}" for i in range(len(frames))])
-
     # Wheels: one vehicle part per attach point, positioned at the attach vertex.
     attach_vertices = [dkr.s16(m, attach_off + 2 * k) for k in range(max(0, attach_count))]
     part_count = raw_header[0x56]
     ids_off, idx_off = dkr.u32(raw_header, 0x14), dkr.u32(raw_header, 0x18)
     part_ids = [dkr.s32(raw_header, ids_off + 4 * k) for k in range(part_count)] if 0 < ids_off < len(raw_header) else []
     part_attach = list(raw_header[idx_off:idx_off + part_count]) if 0 < idx_off < len(raw_header) else []
-    wheels, written = [], set()
+    wheels = []
     for k, part_id in enumerate(part_ids):
         if not (0 <= part_id < len(headers)) or k >= len(part_attach) or part_attach[k] >= len(attach_vertices):
             continue
@@ -154,25 +147,50 @@ def export(rom, object_name, out_root):
         # its frames are the wheel seen from 0 deg (head-on, frame 0) to 90 deg
         # (side on, last frame) round from the vehicle's vertical plane
         # (render_sprite_billboard in the decomp's src/camera.c).
-        frames = []
-        for spin, sprite_id in enumerate(part["models"]):
+        spins = []
+        for sprite_id in part["models"]:
             sprite = rom.section("ASSET_SPRITES")[rom.table("ASSET_SPRITES_TABLE")[sprite_id]:]
+            spins.append([dkr.sprite_image(rom, sprite_id, angle) for angle in range(max(1, dkr.s16(sprite, 2)))])
+        # DKR steers attach points 2 and 3 (y_rotation = stick x * 100, src/racer.c
+        # update_car_wheels); 0 and 1 stay straight.
+        wheels.append({"part": part["name"], "scale": part["scale"], "steers": k >= 2,
+                       "position": [dkr.s16(m, vo), dkr.s16(m, vo + 2), dkr.s16(m, vo + 4)], "spins": spins})
+
+    return {"header": hd, "model_id": model_id, "model": m, "textures": textures, "groups": groups,
+            "corner_vertex": corner_vertex, "anim_frames": animation_frames(rom, model_id, m), "wheels": wheels}
+
+
+def export(rom, object_name, out_root):
+    racer = load_racer(rom, object_name)
+    groups, textures, frames = racer["groups"], racer["textures"], racer["anim_frames"]
+
+    # Driving animation as morph targets (shape keys): one per animation frame,
+    # each the offset of every corner from the base pose.
+    targets = {}
+    for key, corners in groups.items():
+        targets[key] = [[tuple(f[v][k] - c[k] for k in range(3)) if v in f else (0.0, 0.0, 0.0)
+                         for v, c in zip(racer["corner_vertex"][key], corners)] for f in frames]
+    out_dir = os.path.join(out_root, object_name)
+    dkr.write_gltf(rom, out_dir, object_name, groups, textures, targets if frames else None,
+                   [f"anim0_f{i:02d}" for i in range(len(frames))])
+
+    wheels, written = [], set()
+    for wheel in racer["wheels"]:
+        spin_files = []
+        for spin, images in enumerate(wheel["spins"]):
             angles = []
-            for angle in range(max(1, dkr.s16(sprite, 2))):
-                w, h, rgba, left, top = dkr.sprite_image(rom, sprite_id, angle)
-                file = f"wheel_{part['name']}_s{spin}_a{angle:02d}.png"
+            for angle, (w, h, rgba, left, top) in enumerate(images):
+                file = f"wheel_{wheel['part']}_s{spin}_a{angle:02d}.png"
                 if file not in written:
                     with open(os.path.join(out_dir, file), "wb") as fh:
                         fh.write(dkr.png_bytes(w, h, rgba))
                     written.add(file)
                 angles.append({"file": file, "w": w, "h": h, "left": left, "top": top})
-            frames.append(angles)
-        # DKR steers attach points 2 and 3 (y_rotation = stick x * 100, src/racer.c
-        # update_car_wheels); 0 and 1 stay straight.
-        wheels.append({"part": part["name"], "scale": part["scale"], "steers": k >= 2,
-                       "position": [dkr.s16(m, vo), dkr.s16(m, vo + 2), dkr.s16(m, vo + 4)], "frames": frames})
+            spin_files.append(angles)
+        wheels.append({"part": wheel["part"], "scale": wheel["scale"], "steers": wheel["steers"],
+                       "position": wheel["position"], "frames": spin_files})
 
-    info = {"object": object_name, "model": model_id, "object_scale": hd["scale"],
+    info = {"object": object_name, "model": racer["model_id"], "object_scale": racer["header"]["scale"],
             "drive_animation": {"frames": len(frames), "straight": 40, "full_right": 0, "full_left": 73,
                                 "shape_key": "anim0_fNN"},
             "units": "DKR model units, Y up (same as the glTF)", "wheels": wheels}
@@ -181,8 +199,9 @@ def export(rom, object_name, out_root):
     for old in os.listdir(out_dir):  # drop single-frame wheel images from older exports
         if old.startswith("wheel_") and old not in written:
             os.remove(os.path.join(out_dir, old))
-    print(f"Racer {object_name}: model {model_id}, {sum(len(c) for c in groups.values()) // 3} triangles, "
-          f"{len(textures)} textures, {len(wheels)} wheels ({len(written)} wheel frame images).")
+    print(f"Racer {object_name}: model {racer['model_id']}, {sum(len(c) for c in groups.values()) // 3} triangles, "
+          f"{len(textures)} textures, {len(wheels)} wheels ({len(written)} wheel frame images), "
+          f"{len(frames)} animation frames.")
 
 
 def main():
