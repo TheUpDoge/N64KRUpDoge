@@ -3,7 +3,7 @@
 ## What this project is
 A modular kart-racing platform where **character, vehicle and movement model are separate and swappable**.
 - **Host:** a fork of SpaghettiKart (HarbourMasters/SpaghettiKart), the native PC port of Mario Kart 64. It builds from the MK64 decomp and generates assets from the user's own ROM.
-- **Repo model (user decision 2026-11-01):** N64KR is its own project on the user's public GitHub repo https://github.com/TheUpDoge/N64kR (remote `origin`, branch `n64kr`; push there when the user asks) and pulls SpaghettiKart updates from remote `upstream` (HarbourMasters). Never push to `upstream`.
+- **Repo model (user decision 2026-11-01):** N64KR is its own project on the user's public GitHub fork of SpaghettiKart, https://github.com/TheUpDoge/N64KRUpDoge (remote `origin`, branch `n64kr`; push there when the user asks; the old standalone TheUpDoge/N64kR is retired) and pulls SpaghettiKart updates from remote `upstream` (HarbourMasters). Never push to `upstream`.
 - **Donor:** Diddy Kong Racing decomp (DavidSM64/Diddy-Kong-Racing), used as the reference for hovercraft and plane movement.
 - **Core rule:** the CHARACTER DOES NOT OWN PHYSICS. A VehicleProfile and MovementModel do.
 - **Long-term goal:** one PC port that combines MK64 and DKR, and can later take content (characters, vehicles, movement models, tracks) from more games we reverse engineer. Each game's content comes from the user's own ROM at runtime, never from the repo. The slices below are the first step toward this.
