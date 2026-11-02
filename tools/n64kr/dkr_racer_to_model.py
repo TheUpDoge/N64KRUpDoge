@@ -41,6 +41,10 @@ POSE_FRAMES = [0, 10, 20, 30, 40, 48, 56, 64, 73]  # full right .. straight .. f
 WORLD_SCALE = 0.12
 VERTS_PER_LOAD = 30
 WHEEL_SIDES = 10
+# DKR draws wheels as flat camera-facing sprites; as solid cylinders at the
+# sprite's size they read too big (user playtest), so scale them down.
+WHEEL_RADIUS_SCALE = 0.75
+WHEEL_WIDTH_SCALE = 0.6
 HEADER = (b"\0\0\0\0" + b"XETO" + b"\0\0\0\0" + bytes.fromhex("efbeaddeefbeadde")).ljust(0x40, b"\0")
 
 
@@ -146,8 +150,8 @@ def wheel_corners(wheel, side_size, tread_rgb):
     textured discs (the sprite's side-on frame) and a vertex-coloured tread.
     Returns (disc corners, tread corners) in DKR model units, DKR axes."""
     (iw, ih), scale = side_size, wheel["scale"]
-    radius = ih * scale / 2
-    width = wheel["spins"][0][0][0] * scale  # head-on frame width
+    radius = ih * scale / 2 * WHEEL_RADIUS_SCALE
+    width = wheel["spins"][0][0][0] * scale * WHEEL_WIDTH_SCALE  # head-on frame width
     cx, cy, cz = wheel["position"]
     discs, tread = [], []
     ring = [(math.cos(2 * math.pi * k / WHEEL_SIDES), math.sin(2 * math.pi * k / WHEEL_SIDES)) for k in range(WHEEL_SIDES)]
