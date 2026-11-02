@@ -19,8 +19,9 @@
 #define WHEEL_LOCK 7000
 #define WHEEL_LOCK_AT_TURN (1.0f / 3.0f)
 // Wheel roll: tyreSpeed counts 0..0x3FF per sprite spin cycle (kart_dma.c,
-// wheel frame = tyreSpeed >> 8); one cycle = one wheel turn here.
-#define WHEEL_ROLL_SHIFT 6
+// wheel frame = tyreSpeed >> 8). One cycle = one wheel turn rolled twice too
+// fast (user playtest), so one cycle = half a turn.
+#define WHEEL_ROLL_SHIFT 5
 #define BOOST_ALPHA 0x40 // func_80025DE8's afterimage alpha
 
 // Render modes (the model's materials are 2-cycle; the first cycle passes
@@ -32,6 +33,20 @@
 // Wheel matrices (model space, multiplied onto the kart matrix): one set for
 // the kart, one for its boost afterimage, per player per screen.
 static Mtx sWheelMtx[2][NUM_PLAYERS * 4][N64KR_RACER3D_MAX_WHEELS];
+// Accumulated wheel roll per player: tyreSpeed wraps every 0x400, which at
+// half a turn per cycle would snap the wheel back; add its change instead.
+static u16 sWheelRoll[NUM_PLAYERS];
+static s16 sLastTyreSpeed[NUM_PLAYERS];
+
+static u16 wheel_roll(const Player* player, s32 playerId) {
+    if ((playerId < 0) || (playerId >= NUM_PLAYERS)) {
+        return 0;
+    }
+    // Same value on every screen in a frame: the second draw adds nothing.
+    sWheelRoll[playerId] += (u16) (((player->tyreSpeed - sLastTyreSpeed[playerId]) & 0x3FF) << WHEEL_ROLL_SHIFT);
+    sLastTyreSpeed[playerId] = player->tyreSpeed;
+    return sWheelRoll[playerId];
+}
 
 static const N64krRacerModel* model_for(const Player* player) {
     const N64krCharacter* c = n64kr_get_character(player->characterId);
@@ -68,8 +83,9 @@ static void draw_model(const N64krRacerModel* model, const Player* player, s32 p
     s32 k;
     // Roll about the axle (x): rows of the row-vector rotation (N64 matrices
     // multiply v * M), positive = the tyre top moving forward (+Z).
-    f32 rs = sins((u16) (player->tyreSpeed << WHEEL_ROLL_SHIFT));
-    f32 rc = coss((u16) (player->tyreSpeed << WHEEL_ROLL_SHIFT));
+    u16 roll = wheel_roll(player, playerId);
+    f32 rs = sins(roll);
+    f32 rc = coss(roll);
 
     lock = (lock > 1.0f) ? 1.0f : ((lock < -1.0f) ? -1.0f : lock);
 
