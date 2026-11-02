@@ -2,7 +2,7 @@
 
 Project: N64 Kart Racing (N64KR)
 Date: 2026-11-01
-Status: IN PROGRESS. Step 1 (art pipeline) and step 2 (engine slot) pass in game; step 3 (grid > 8, CPU choice) and own HUD/voice not started.
+Status: PASSED (user playtests 2026-11-01). See the end of this file for remaining polish.
 
 ## Plan
 1. **Art pipeline**: DKR racer 3D model → MK64 kart sprite frames. Validate by replacing an existing character's sprites with a texture pack (supported by SpaghettiKart).
@@ -134,3 +134,6 @@ Debug and Release: 0 errors, no warnings from `src/n64kr`.
 - CPUs: in GP, one CPU races as Diddy when no human picked him (`n64kr_cpu_roster` after the roster fill, 1P and 2P). If a GP rival's seat was taken, Diddy inherits the rival role (`n64kr_rival_character` in the `code_80005FD0.c` rival lookup), so it never points at a racer who isn't there.
 - Portrait (user request): face raised a third of the frame (separate render from the select face).
 - [VERIFIED: build] Debug: 0 errors. In-game check pending. Not done: face animations (blink/celebrate) for Diddy; his cell is a still.
+- [VERIFIED: user playtest] Select pages work in game ("Pages work").
+
+Status: SLICE-9 PASSED: Diddy is a full character (own kart sprites, driving pose, HUD, voice, select cell, CPU). Remaining polish: select face animations, results "congratulations" face.
