@@ -78,3 +78,21 @@ pub fn parse(file: &[u8]) -> Result<Bg, String> {
     }
     Ok(Bg { rooms })
 }
+
+/// Texture numbers a room's display lists reference: GoldenEye reuses G_NOOP
+/// (0xC0 in Fast3D) as "load texture" with the number in w1 bits 0-11, and a
+/// detail texture's number in bits 12-23 for type 1 (tex.c texLoadFromGdl).
+pub fn texture_refs(dl: &[u8]) -> Vec<usize> {
+    let mut out = Vec::new();
+    for cmd in dl.chunks_exact(8) {
+        if cmd[0] == 0xC0 {
+            let w0 = u32_be(cmd, 0);
+            let w1 = u32_be(cmd, 4);
+            out.push((w1 & 0xFFF) as usize);
+            if w0 & 7 == 1 {
+                out.push(((w1 >> 12) & 0xFFF) as usize);
+            }
+        }
+    }
+    out
+}

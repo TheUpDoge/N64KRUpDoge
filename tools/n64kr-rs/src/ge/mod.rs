@@ -2,6 +2,9 @@
 //! decompilation (commit c435646).
 
 pub mod bg;
+pub mod dl;
+mod images_us;
+pub mod tex;
 
 /// SHA-1 of the US ROM the tables below belong to (decomp ge007.u.sha1).
 pub const US_SHA1: &str = "abe01e4aeb033b6c0836819f549c791b26cfde83";
