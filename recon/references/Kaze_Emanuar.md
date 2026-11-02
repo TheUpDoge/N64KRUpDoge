@@ -15,3 +15,9 @@ Read: the Software Engineering Daily interview transcript (SED1666) and press co
 - His "read and understand the whole system before changing it" approach matches this project's recon-first rule (CLAUDE.md).
 
 Sources: https://softwareengineeringdaily.com/wp-content/uploads/2024/03/SED1666-Kaze_Emanuar.txt · https://en.wikipedia.org/wiki/Kaze_Emanuar · https://hackaday.com/2022/04/21/ · https://timeextension.com/news/2024/03/super-mario-sunshine-on-n64-looks-better-than-you-might-expect
+
+## GitHub (https://github.com/KazeEmanuar) [VERIFIED: profile page, 2026-11-01]
+- SM64-but-some-optimizations-are-removed (C, 58★): a demo of SM64 running better, with some of his optimizations removed (non-functional).
+- HackerSM64 (C, fork of HackerN64/HackerSM64): the SM64 decomp base for ROM hacks his community builds on.
+- splitscreen-multiplayer (Assembly), Peachfury (C), sm64 (fork of n64decomp/sm64), Chaos3 (C, a decomp version of Chaos Edition).
+- [CONCLUSION] None of these are model, track or format tools we can reuse directly; HackerSM64 is the place to study his N64 rendering and optimization practice if N64KR ever targets real hardware.
