@@ -80,6 +80,16 @@ extern "C" void n64kr_music_prepare(u16 id) {
     }
     auto& data = sData[id];
     data.assign(wav->Buffer->begin(), wav->Buffer->end());
+    // Loop points are written in the WAV's frames; HMAS decodes at the
+    // mixer's rate and miniaudio counts loop points in decoded frames.
+    const uint32_t wavRate = (data.size() >= 28) ? (uint32_t) data[24] | ((uint32_t) data[25] << 8) |
+                                                       ((uint32_t) data[26] << 16) | ((uint32_t) data[27] << 24)
+                                                 : 0;
+    const uint32_t mixRate = GameEngine_GetSampleRate();
+    if ((wavRate != 0) && (mixRate != 0) && (wavRate != mixRate) && (info.loop.start >= 0)) {
+        info.loop.start = info.loop.start * mixRate / wavRate;
+        info.loop.end = info.loop.end * mixRate / wavRate;
+    }
     GameEngine::Instance->gHMAS->RegisterSound(id, data.data(), (uint32_t) data.size(), info);
     SPDLOG_INFO("[n64kr] song {} registered as sequence {:#x} (loop {}..{})", base, id, info.loop.start,
                 info.loop.end);
