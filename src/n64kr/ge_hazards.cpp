@@ -45,11 +45,12 @@ constexpr s32 kChainDelay = 9;
 constexpr s32 kExplodeTicks = 54;
 constexpr s32 kBarrelRespawn = 600;     // 10 s
 
-// Guard: 16 units tall; sees racers within kRange; raises the KF7 (5 poses),
+// Guard: on a watchtower balcony; sees racers within kRange; raises the KF7 (5 poses),
 // aims, fires a burst of kBurst shots, cools down, and lowers it again when
 // nobody is near.
-constexpr float kGuardHeight = 16.0f;
-constexpr float kRange = 650.0f;
+// Sized to Dam's watchtower (balcony to hut roof ~52 GoldenEye units at the track's 0.35 scale).
+constexpr float kGuardHeight = 20.0f;
+constexpr float kRange = 900.0f; // two towers per track, so each covers more of it
 constexpr s32 kRaiseTicksPerPose = 6;
 constexpr s32 kAimTicks = 28;
 constexpr s32 kBurst = 3;

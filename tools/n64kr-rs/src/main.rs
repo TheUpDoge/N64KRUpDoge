@@ -21,6 +21,7 @@ Commands:
   ge-textures <GoldenEye ROM> <level> <dir>  Decode the textures a level uses to <dir>/tex_NNNN.png
   ge-images <GoldenEye ROM> <dir> <n>...    Decode images by number to <dir>/textures/tex_NNNN.png
   ge-gltf <GoldenEye ROM> <level> <dir>      Whole level as glTF (+ textures) in GoldenEye units, Y up
+  ge-rooms-gltf <GoldenEye ROM> <level> <dir> <room>...  Chosen rooms only (as listed by ge-bg-info)
   ge-model <GoldenEye ROM> <file> <dir> [<anim> <frame>]
                                              An object model (e.g. PgasbarrelZ, ColiveguardZ): node tree, glTF;
                                              guards posed by an animation frame (idle, fire_standing, ...)
@@ -554,62 +555,63 @@ fn ge_dam_speedway(rom_path: &str, dir: &str, variant: &str) -> Result<(), Strin
     let start = oval.sample(0.0).across(oval.width / 2.0);
     let place = track::Placement { origin: start, scale: SCALE };
 
-    let out = PathBuf::from(dir);
-    let mut cache = TexCache::new(&rom.data, &out)?;
-    let extras = |surface: &str, clip: &str, draw: &str, alpha: &str| {
-        format!("\"mk64_surface\":\"{surface}\",\"mk64_clip\":\"{clip}\",\"mk64_draw\":\"{draw}\",\"mk64_alpha\":\"{alpha}\"")
-    };
-    // Scenery: non-solid.
-    let (mut materials, mut primitives) = ge_parts(&tris, &mut cache, &|p| place.apply(p), &|translucent, alpha| {
-        extras("ASPHALT", "CLIP_NONE", if translucent { "DRAW_TRANSLUCENT" } else { "DRAW_OPAQUE" }, alpha)
-    })?;
-
     let (l, r) = (oval.half_straight, oval.radius);
     let turn = std::f32::consts::PI * r;
     let west = l + turn; // start of the west straight
 
-    // Hazards (src/n64kr/ge_hazards.cpp): guards on sentry pads beside the
-    // straights and on the dam crest(s) behind the turns; oil drum clusters
-    // on the road, clear of the start line and the item box rows. Positions
-    // along the lap are fractions of a straight (east: s from -L to L through
-    // the start line at 0.5; west: from the end of the north turn).
+    // Hazards (src/n64kr/ge_hazards.cpp). Positions along the lap are
+    // fractions of a straight (east: s from -L to L through the start line at
+    // 0.5; west: from the end of the north turn).
     let east = |f: f32| (-l + 2.0 * l * f).rem_euclid(oval.lap_length());
     let west_at = |f: f32| west + 2.0 * l * f;
-    // (s, outside the outer wall?)
-    let pads: Vec<(f32, bool)> = if twin {
-        vec![
-            (east(0.1), true),
-            (east(0.36), true),
-            (east(0.62), false),
-            (east(0.9), true),
-            (west_at(0.12), true),
-            (west_at(0.38), false),
-            (west_at(0.62), true),
-            (west_at(0.88), true),
-        ]
-    } else {
-        vec![(east(0.12), true), (east(0.38), true), (west_at(0.2), false), (west_at(0.8), true)]
-    };
-    // Dam crest walkway (y -25, 55 above the road), measured on the height map:
-    // cells along the arch from x -1,150 to 1,050.
-    let mut crest: Vec<[f32; 3]> = vec![[-1150.0, -25.0, -650.0], [-550.0, -25.0, -750.0], [50.0, -25.0, -850.0], [650.0, -25.0, -750.0], [1050.0, -25.0, -650.0]];
-    if twin {
-        let turned: Vec<[f32; 3]> = crest.iter().map(|p| [2.0 * oval.cx - p[0], p[1], 2.0 * oval.cz - p[2]]).collect();
-        crest.extend(turned);
-    }
-    const PAD_HALF: f32 = 40.0;
-    // Tower tops sit this far above the road edge: over the 60-unit walls, so
-    // the 16-unit guards (about 46 GoldenEye units) are seen (user test: hidden).
-    const TOWER_ABOVE_WALL: f32 = WALL_HEIGHT + 25.0;
+    let mut actors: Vec<String> = Vec::new();
+
+    // Two watchtowers with a guard each (user: guards in towers like Dam's,
+    // only 2 spots): copies of Dam's own tower on the dam crest (rooms 78-80:
+    // block with door and ladder, railed balcony at y 58, hut with pyramid
+    // roof, floor at the crest y -25, shaft down to y -150), outside the outer
+    // wall on opposite straights. The tower floor goes to the road's level,
+    // which puts the shaft in the water and the balcony 23 above the walls.
+    const TOWER_ROOMS: [usize; 3] = [78, 79, 80];
+    const TOWER_CENTRE: [f32; 2] = [-1351.5, -740.5];
+    const TOWER_FLOOR_Y: f32 = -25.0;
+    const TOWER_BALCONY_Y: f32 = 58.0;
+    const TOWER_HALF: f32 = 117.0;
+    const GUARD_FORWARD: f32 = 85.0; // from the tower's centre toward the road, on the balcony
     const HEADS: [&str; 4] = ["dave", "karl", "mark", "jim"];
+    let mut tower = Vec::new();
+    for room in bg.rooms.iter().filter(|r| TOWER_ROOMS.contains(&r.index)) {
+        ge::dl::room_triangles(&room.primary_dl, &room.vertices, room.position, false, &mut tower);
+        if let Some(sec) = &room.secondary_dl {
+            ge::dl::room_triangles(sec, &room.vertices, room.position, true, &mut tower);
+        }
+    }
+    let tower_spots: [f32; 2] = if twin { [east(0.3), west_at(0.7)] } else { [east(0.85), west_at(0.35)] };
     let yaw_u16 = |from: [f32; 3], to: [f32; 3]| {
         let a = (to[0] - from[0]).atan2(to[2] - from[2]);
         ((a / std::f32::consts::TAU * 65536.0).round() as i64).rem_euclid(65536)
     };
-    let mut actors: Vec<String> = Vec::new();
-    let mut pad_top = track::Mesh::default();
-    let mut pad_sides = track::Mesh::default();
-    let mut guard = |at: [f32; 3], face: [f32; 3], n: usize| {
+    let mut n_guards = 0;
+    for (n, &s) in tower_spots.iter().enumerate() {
+        let sm = oval.sample(s);
+        let edge = sm.across(oval.width);
+        let (ox, oz) = (sm.outward[0], sm.outward[2]);
+        let centre = [edge[0] + ox * (8.0 + TOWER_HALF), edge[2] + oz * (8.0 + TOWER_HALF)];
+        // The tower's -z side (the reservoir side on the dam) faces the road.
+        let (sn, cs) = ox.atan2(oz).sin_cos();
+        let dy = oval.base_y - TOWER_FLOOR_Y;
+        let to_world = |p: [f32; 3]| {
+            let (lx, lz) = (p[0] - TOWER_CENTRE[0], p[2] - TOWER_CENTRE[1]);
+            [centre[0] + lx * cs + lz * sn, p[1] + dy, centre[1] - lx * sn + lz * cs]
+        };
+        for t in &tower {
+            let mut t = t.clone();
+            for v in &mut t.v {
+                v.pos = to_world(v.pos);
+            }
+            tris.push(t);
+        }
+        let at = to_world([TOWER_CENTRE[0], TOWER_BALCONY_Y, TOWER_CENTRE[1] - GUARD_FORWARD]);
         let p = place.apply(at);
         actors.push(format!(
             "{{\"Name\":\"n64kr:ge_guard\",\"Location\":{{\"x\":{:.1},\"y\":{:.1},\"z\":{:.1}}},\
@@ -617,50 +619,16 @@ fn ge_dam_speedway(rom_path: &str, dir: &str, variant: &str) -> Result<(), Strin
             p[0],
             p[1],
             p[2],
-            yaw_u16(at, face),
+            yaw_u16(at, sm.across(oval.width / 2.0)),
             HEADS[n % HEADS.len()]
         ));
-    };
-    let mut n_guards = 0;
-    for &(s, outside) in &pads {
-        let sm = oval.sample(s);
-        let (edge, dir) = if outside { (sm.across(oval.width), 1.0) } else { (sm.across(0.0), -1.0) };
-        let c = [
-            edge[0] + sm.outward[0] * dir * (8.0 + PAD_HALF),
-            edge[1] + TOWER_ABOVE_WALL,
-            edge[2] + sm.outward[2] * dir * (8.0 + PAD_HALF),
-        ];
-        let (t, sd) = track::pad(c, PAD_HALF, water_y);
-        pad_top.positions.extend(t.positions);
-        pad_top.uvs.extend(t.uvs);
-        pad_top.colors.extend(t.colors);
-        pad_sides.positions.extend(sd.positions);
-        pad_sides.uvs.extend(sd.uvs);
-        pad_sides.colors.extend(sd.colors);
-        guard(c, sm.across(oval.width / 2.0), n_guards);
         n_guards += 1;
     }
-    // Crest guards stand on towers from the walkway up past the turn's banked outer wall.
-    let crest_top = oval.base_y + oval.width * oval.bank_degrees.to_radians().sin() + TOWER_ABOVE_WALL;
-    for &w in &crest {
-        let c = [w[0], crest_top.max(w[1]), w[2]];
-        let (t, sd) = track::pad(c, PAD_HALF, w[1]);
-        pad_top.positions.extend(t.positions);
-        pad_top.uvs.extend(t.uvs);
-        pad_top.colors.extend(t.colors);
-        pad_sides.positions.extend(sd.positions);
-        pad_sides.uvs.extend(sd.uvs);
-        pad_sides.colors.extend(sd.colors);
-        guard(c, [oval.cx, c[1], oval.cz], n_guards);
-        n_guards += 1;
-    }
-    // Barrels: (s, lateral positions as fractions of the road width), patterns alternating the open lane.
-    let clusters: Vec<f32> = if twin {
-        vec![east(0.64), east(0.86), l + turn * 0.85, west_at(0.12), west_at(0.38), west_at(0.62), west_at(0.88), 3.0 * l + turn * 1.85]
-    } else {
-        vec![east(0.64), l + turn * 0.85, west_at(0.5), 3.0 * l + turn * 1.85]
-    };
-    const PATTERNS: [[f32; 3]; 2] = [[0.18, 0.31, 0.72], [0.28, 0.67, 0.81]];
+
+    // Barrels (user: fewer): pairs across the road, leaving open lanes, clear
+    // of the start line and the item box rows.
+    let clusters: Vec<f32> = if twin { vec![east(0.64), west_at(0.38), 3.0 * l + turn * 1.85] } else { vec![east(0.64), west_at(0.5)] };
+    const PATTERNS: [[f32; 2]; 2] = [[0.25, 0.62], [0.4, 0.78]];
     let mut n_barrels = 0;
     for (i, &s) in clusters.iter().enumerate() {
         let sm = oval.sample(s);
@@ -672,9 +640,20 @@ fn ge_dam_speedway(rom_path: &str, dir: &str, variant: &str) -> Result<(), Strin
     }
     let extra = format!("\"actors\":[{}],\"sequence\":{}", actors.join(","), 0x4E40); // N64KR_MUSIC_GE_DAM
 
+
+    let out = PathBuf::from(dir);
+    let mut cache = TexCache::new(&rom.data, &out)?;
+    let extras = |surface: &str, clip: &str, draw: &str, alpha: &str| {
+        format!("\"mk64_surface\":\"{surface}\",\"mk64_clip\":\"{clip}\",\"mk64_draw\":\"{draw}\",\"mk64_alpha\":\"{alpha}\"")
+    };
+    // Scenery: non-solid.
+    let (mut materials, mut primitives) = ge_parts(&tris, &mut cache, &|p| place.apply(p), &|translucent, alpha| {
+        extras("ASPHALT", "CLIP_NONE", if translucent { "DRAW_TRANSLUCENT" } else { "DRAW_OPAQUE" }, alpha)
+    })?;
+
+
     // Road (Dam's asphalt), walls (Dam's red/white stripes, solid both
-    // sides), out-of-bounds sheet at the water (Lakitu rescue), sentry pads
-    // (asphalt tops, striped sides, scenery: the walls keep karts off them).
+    // sides), out-of-bounds sheet at the water (Lakitu rescue).
     let road_image = cache.image(ROAD_TEXTURE)?;
     let wall_image = cache.image(WALL_TEXTURE)?;
     let parts = [
@@ -682,9 +661,7 @@ fn ge_dam_speedway(rom_path: &str, dir: &str, variant: &str) -> Result<(), Strin
         ("n64kr_wall", wall_image, extras("SURFACE_DEFAULT", "CLIP_DOUBLE_SIDED_WALL", "DRAW_OPAQUE", "opaque"), meshes.walls),
         // Never drawn, but Fast64 only converts textured materials (an untextured
         // one stops the export), so it borrows the road's.
-        ("n64kr_out_of_bounds", road_image.clone(), extras("OUT_OF_BOUNDS", "CLIP_DEFAULT", "DRAW_INVISIBLE", "opaque"), meshes.out_of_bounds),
-        ("n64kr_pad_top", road_image, extras("ASPHALT", "CLIP_NONE", "DRAW_OPAQUE", "opaque"), pad_top),
-        ("n64kr_pad_side", cache.image(WALL_TEXTURE)?, extras("SURFACE_DEFAULT", "CLIP_NONE", "DRAW_OPAQUE", "opaque"), pad_sides),
+        ("n64kr_out_of_bounds", road_image, extras("OUT_OF_BOUNDS", "CLIP_DEFAULT", "DRAW_INVISIBLE", "opaque"), meshes.out_of_bounds),
     ];
     for (name, image, ex, mesh) in parts {
         materials.push(gltf::Material { name: name.into(), image, alpha_mode: "OPAQUE", extras: ex });
@@ -708,8 +685,9 @@ fn ge_dam_speedway(rom_path: &str, dir: &str, variant: &str) -> Result<(), Strin
     let rows: Vec<[f32; 3]> = row_s
         .iter()
         .map(|&s| {
-            let p = place.apply(oval.sample(s).across(oval.width / 2.0));
-            [p[0], p[1] + 15.0, p[2]]
+            // On the road: MK64 floats a box 8.66 above the height it is given
+            // (update_actor_item_box); +15 left them out of reach (user test).
+            place.apply(oval.sample(s).across(oval.width / 2.0))
         })
         .collect();
     let layout = track::layout_json(track, SCALE, &path, &rows, [92, 120, 150], [178, 186, 196], &extra);
@@ -841,6 +819,25 @@ fn ge_audio(rom_path: &str, mod_dir: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Chosen rooms of a level as glTF (GoldenEye units), to look at pieces.
+fn ge_rooms_gltf(rom_path: &str, level: &str, dir: &str, rooms: &[&str]) -> Result<(), String> {
+    let rom = load_ge(rom_path)?;
+    let (bg, _, _) = load_level(&rom, level)?;
+    let wanted: Vec<usize> = rooms.iter().map(|r| r.parse::<usize>().map_err(|_| format!("room '{r}'"))).collect::<Result<_, _>>()?;
+    let mut tris = Vec::new();
+    for room in bg.rooms.iter().filter(|r| wanted.contains(&r.index)) {
+        ge::dl::room_triangles(&room.primary_dl, &room.vertices, room.position, false, &mut tris);
+        if let Some(sec) = &room.secondary_dl {
+            ge::dl::room_triangles(sec, &room.vertices, room.position, true, &mut tris);
+        }
+    }
+    let out = PathBuf::from(dir);
+    let mut cache = TexCache::new(&rom.data, &out)?;
+    let (materials, primitives) = ge_parts(&tris, &mut cache, &|p| p, &|_, _| String::new())?;
+    println!("{level} rooms {wanted:?}: {} triangles", tris.len());
+    gltf::write(&out, "rooms", &materials, &primitives)
+}
+
 fn ge_bg_info(rom_path: &str, level: &str) -> Result<(), String> {
     let rom = load_ge(rom_path)?;
     let (bg, bg_name, scale) = load_level(&rom, level)?;
@@ -853,9 +850,22 @@ fn ge_bg_info(rom_path: &str, level: &str) -> Result<(), String> {
         verts += v;
         pri += p;
         sec += s;
+        let mut tris = Vec::new();
+        ge::dl::room_triangles(&room.primary_dl, &room.vertices, room.position, false, &mut tris);
+        if let Some(sec) = &room.secondary_dl {
+            ge::dl::room_triangles(sec, &room.vertices, room.position, true, &mut tris);
+        }
+        let (mut lo, mut hi) = ([f32::MAX; 3], [f32::MIN; 3]);
+        for v in tris.iter().flat_map(|t| t.v.iter()) {
+            for k in 0..3 {
+                lo[k] = lo[k].min(v.pos[k]);
+                hi[k] = hi[k].max(v.pos[k]);
+            }
+        }
         println!(
-            "room {:3}  at ({:8.0} {:8.0} {:8.0})  {:5} vertices  {:5} + {:4} DL commands",
-            room.index, room.position[0], room.position[1], room.position[2], v, p, s
+            "room {:3}  at ({:8.0} {:8.0} {:8.0})  {:5} vertices  {:5} + {:4} DL commands  {:5} tris  bbox x {:6.0}..{:6.0} y {:6.0}..{:6.0} z {:6.0}..{:6.0}",
+            room.index, room.position[0], room.position[1], room.position[2], v, p, s, tris.len(),
+            lo[0], hi[0], lo[1], hi[1], lo[2], hi[2]
         );
     }
     println!(
@@ -871,6 +881,7 @@ fn main() -> ExitCode {
         ["ge-bg-info", rom, level] => ge_bg_info(rom, level),
         ["ge-textures", rom, level, dir] => ge_textures(rom, level, dir),
         ["ge-gltf", rom, level, dir] => ge_gltf(rom, level, dir),
+        ["ge-rooms-gltf", rom, level, dir, rooms @ ..] if !rooms.is_empty() => ge_rooms_gltf(rom, level, dir, rooms),
         ["ge-images", rom, dir, nums @ ..] if !nums.is_empty() => ge_images(rom, dir, nums),
         ["ge-model", rom, name, dir] => ge_model(rom, name, dir, None),
         ["ge-model", rom, name, dir, anim, frame] => ge_model(rom, name, dir, Some((anim, frame))),

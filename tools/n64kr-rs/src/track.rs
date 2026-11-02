@@ -195,27 +195,6 @@ pub fn centre_distance(oval: &Oval, x: f32, z: f32) -> f32 {
     }
 }
 
-/// A sentry pad: a square box `half` wide each way around `top` (its top
-/// centre), down to `bottom_y`. Returns (top, sides).
-pub fn pad(top: [f32; 3], half: f32, bottom_y: f32) -> (Mesh, Mesh) {
-    let white = [255, 255, 255, 255];
-    let (x0, x1, z0, z1, y1) = (top[0] - half, top[0] + half, top[2] - half, top[2] + half, top[1]);
-    let mut t = Mesh::default();
-    t.quad([[x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0]], [[0.0, 0.0], [0.0, 1.0], [1.0, 1.0], [1.0, 0.0]], white);
-    let mut sides = Mesh::default();
-    let v = (y1 - bottom_y) / (half * 2.0);
-    let corners = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
-    for i in 0..4 {
-        let (a, b) = (corners[i], corners[(i + 1) % 4]);
-        sides.quad(
-            [[a[0], bottom_y, a[1]], [b[0], bottom_y, b[1]], [b[0], y1, b[1]], [a[0], y1, a[1]]],
-            [[0.0, v], [1.0, v], [1.0, 0.0], [0.0, 0.0]],
-            white,
-        );
-    }
-    (t, sides)
-}
-
 /// The road's centre line in MK64 units, every `step` source units, for the
 /// AI path and minimap.
 pub fn path(oval: &Oval, place: &Placement, step: f32) -> Vec<[f32; 3]> {
