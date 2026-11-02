@@ -106,6 +106,7 @@ void HMAS::Stop(HMAS_ChannelId channelId) {
 
     ma_sound_stop(channel->sound);
     channel->sound = nullptr;
+    channel->effects.clear(); // N64KR HOOK: a fade queued for the stopped song (race quit) would mute the next one
     channel->cursor = 0;
     channel->pitch = 1.0f;
     channel->volume = 1.0f;

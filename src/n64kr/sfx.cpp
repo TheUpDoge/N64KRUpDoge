@@ -26,9 +26,15 @@ uint32_t GameEngine_GetSampleRate();
 namespace {
 
 // Loudness: full within kNear of the nearest camera, silent beyond kFar (MK64 units).
-constexpr float kNear = 120.0f;
-constexpr float kFar = 2200.0f;
+constexpr float kNear = 80.0f;
+constexpr float kFar = 1500.0f;
 constexpr size_t kMaxVoices = 24;
+constexpr size_t kMaxPerClip = 4;  // a row of guards firing doesn't stack up the same shot
+// Overall level against MK64's own sound (user test: too loud).
+constexpr float kMasterGain = 0.45f;
+// Soft limiter knee: the port turns the HMAS buffer into 16-bit by casting
+// (Engine.cpp), so anything past +-1.0 wraps around and crackles.
+constexpr float kKnee = 0.75f;
 
 struct Clip {
     std::vector<float> left, right; // at the output rate
@@ -164,14 +170,26 @@ extern "C" void n64kr_sfx_play(const char* path, const f32* pos, f32 volume, f32
     if (!clip->ok) {
         return;
     }
+    size_t same = 0;
+    for (const auto& v : sVoices) {
+        same += (v.clip == clip) ? 1 : 0;
+    }
+    if (same >= kMaxPerClip) {
+        for (auto it = sVoices.begin(); it != sVoices.end(); ++it) {
+            if (it->clip == clip) {
+                sVoices.erase(it); // drop the oldest of this clip
+                break;
+            }
+        }
+    }
     if (sVoices.size() >= kMaxVoices) {
         sVoices.erase(sVoices.begin()); // drop the oldest
     }
     Voice v;
     v.clip = clip;
     v.step = (pitch > 0.0f) ? pitch : 1.0;
-    v.gainL = gl;
-    v.gainR = gr;
+    v.gainL = gl * kMasterGain;
+    v.gainR = gr * kMasterGain;
     sVoices.push_back(v);
 }
 
@@ -193,6 +211,17 @@ extern "C" void n64kr_sfx_mix(f32* stereo, u32 frames) {
     sVoices.erase(std::remove_if(sVoices.begin(), sVoices.end(),
                                  [](const Voice& v) { return (size_t) v.pos >= v.clip->left.size(); }),
                   sVoices.end());
+    // Limit the whole buffer (HMAS music and voice clips too): unchanged below
+    // the knee, then eased so it never reaches 1.0.
+    for (u32 i = 0; i < frames * 2; i++) {
+        float x = stereo[i];
+        float a = std::fabs(x);
+        if (a > kKnee) {
+            float over = (a - kKnee) / (1.0f - kKnee);
+            a = kKnee + (1.0f - kKnee) * over / (1.0f + over);
+            stereo[i] = (x < 0.0f) ? -a : a;
+        }
+    }
 }
 
 extern "C" void n64kr_sfx_stop_all(void) {

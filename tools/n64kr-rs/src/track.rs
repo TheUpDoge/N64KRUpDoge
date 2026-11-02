@@ -184,6 +184,17 @@ pub fn build_oval(oval: &Oval, step: f32, wall_height: f32, oob_y: f32) -> OvalM
     OvalMeshes { road, walls, out_of_bounds, samples }
 }
 
+/// Horizontal distance from (x, z) to the oval's centre line.
+pub fn centre_distance(oval: &Oval, x: f32, z: f32) -> f32 {
+    let dz = z - oval.cz;
+    if dz.abs() <= oval.half_straight {
+        ((x - oval.cx).abs() - oval.radius).abs()
+    } else {
+        let tz = oval.cz + oval.half_straight * dz.signum();
+        (((x - oval.cx).powi(2) + (z - tz).powi(2)).sqrt() - oval.radius).abs()
+    }
+}
+
 /// A sentry pad: a square box `half` wide each way around `top` (its top
 /// centre), down to `bottom_y`. Returns (top, sides).
 pub fn pad(top: [f32; 3], half: f32, bottom_y: f32) -> (Mesh, Mesh) {

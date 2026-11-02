@@ -301,7 +301,7 @@ class AGeBarrel : public AActor {
         mState = State::Exploding;
         mAge = 0;
         mFuse = -1;
-        n64kr_sfx_play(kSfxExplosion, Pos, 1.0f, 0.9f + 0.2f * frand());
+        n64kr_sfx_play(kSfxExplosion, Pos, 0.8f, 0.9f + 0.2f * frand());
         for (s32 i = 0; i < NUM_PLAYERS; i++) {
             Player* p = &gPlayers[i];
             if (!racer_active(p) || (p->effects & STAR_EFFECT)) {
@@ -569,7 +569,7 @@ class AGeGuard : public AActor {
         Vec3f muzzle;
         Muzzle(info, muzzle);
         mFlash = 3;
-        n64kr_sfx_play(kSfxKf7, muzzle, 0.75f, 0.95f + 0.1f * frand());
+        n64kr_sfx_play(kSfxKf7, muzzle, 0.5f, 0.95f + 0.1f * frand());
         if (target == nullptr) {
             // Shooting at where the racer was: straight ahead along the aim.
             float aim = mYaw + info.aimYaw;
@@ -588,7 +588,7 @@ class AGeGuard : public AActor {
             mImpact = 6;
             target->triggers |= HIT_BANANA_TRIGGER;
             sHitImmunity[id] = std::chrono::steady_clock::now() + kHitImmunity;
-            n64kr_sfx_play(kSfxHit, mShotEnd, 1.0f, 1.0f);
+            n64kr_sfx_play(kSfxHit, mShotEnd, 0.7f, 1.0f);
         } else {
             mShotEnd[0] = target->pos[0] + (frand() - 0.5f) * 30.0f;
             mShotEnd[1] = target->pos[1] + frand() * 6.0f - 1.0f;

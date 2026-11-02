@@ -470,6 +470,9 @@ fn ge_dam_speedway(rom_path: &str, dir: &str, variant: &str) -> Result<(), Strin
     // Pavement: Dam's own asphalt (64 x 32), the texture covering the most flat
     // ground in the level (the access road and walkways), per the user's ask.
     const ROAD_TEXTURE: usize = 22;
+    // Banked turns: 25 degrees let karts slide down to the inner wall and stick (user test).
+    const BANK_DEGREES: f32 = 10.0;
+    const WALL_HEIGHT: f32 = 60.0;
     let rom = load_ge(rom_path)?;
     let (bg, _, _) = load_level(&rom, "dam")?;
     let mut tris = Vec::new();
@@ -508,18 +511,20 @@ fn ge_dam_speedway(rom_path: &str, dir: &str, variant: &str) -> Result<(), Strin
             radius: 2000.0,
             base_y: water_y + 120.0,
             width: 360.0,
-            bank_degrees: 25.0,
+            bank_degrees: BANK_DEGREES,
             bank_transition: 1500.0,
         }
     } else {
+        // North turn ends 300 inside the north shore (z -8,900; its rocks
+        // stand above the road and poked through it at z -8,902).
         track::Oval {
             cx: -150.0,
-            cz: -5062.0,
-            half_straight: 1960.0,
+            cz: -4911.0,
+            half_straight: 1809.0,
             radius: 1700.0,
             base_y: water_y + 120.0,
             width: 360.0,
-            bank_degrees: 25.0,
+            bank_degrees: BANK_DEGREES,
             bank_transition: 1500.0,
         }
     };
@@ -535,7 +540,17 @@ fn ge_dam_speedway(rom_path: &str, dir: &str, variant: &str) -> Result<(), Strin
         });
         tris = south.iter().cloned().chain(turned).collect();
     }
-    let meshes = track::build_oval(&oval, 60.0, 60.0, water_y);
+    // Scenery inside the road's corridor above the water (rocks, the dam's
+    // intake tower) pokes up through the road (user test): drop those triangles.
+    let corridor = oval.width / 2.0 + 40.0;
+    let intrudes = |p: [f32; 3]| p[1] > water_y + 15.0 && track::centre_distance(&oval, p[0], p[2]) < corridor;
+    let before = tris.len();
+    tris.retain(|t| {
+        let c = [0, 1, 2].map(|k| (t.v[0].pos[k] + t.v[1].pos[k] + t.v[2].pos[k]) / 3.0);
+        !(t.v.iter().any(|v| intrudes(v.pos)) || intrudes(c))
+    });
+    let dropped = before - tris.len();
+    let meshes = track::build_oval(&oval, 60.0, WALL_HEIGHT, water_y);
     let start = oval.sample(0.0).across(oval.width / 2.0);
     let place = track::Placement { origin: start, scale: SCALE };
 
@@ -583,6 +598,9 @@ fn ge_dam_speedway(rom_path: &str, dir: &str, variant: &str) -> Result<(), Strin
         crest.extend(turned);
     }
     const PAD_HALF: f32 = 40.0;
+    // Tower tops sit this far above the road edge: over the 60-unit walls, so
+    // the 16-unit guards (about 46 GoldenEye units) are seen (user test: hidden).
+    const TOWER_ABOVE_WALL: f32 = WALL_HEIGHT + 25.0;
     const HEADS: [&str; 4] = ["dave", "karl", "mark", "jim"];
     let yaw_u16 = |from: [f32; 3], to: [f32; 3]| {
         let a = (to[0] - from[0]).atan2(to[2] - from[2]);
@@ -607,7 +625,11 @@ fn ge_dam_speedway(rom_path: &str, dir: &str, variant: &str) -> Result<(), Strin
     for &(s, outside) in &pads {
         let sm = oval.sample(s);
         let (edge, dir) = if outside { (sm.across(oval.width), 1.0) } else { (sm.across(0.0), -1.0) };
-        let c = [edge[0] + sm.outward[0] * dir * (8.0 + PAD_HALF), edge[1], edge[2] + sm.outward[2] * dir * (8.0 + PAD_HALF)];
+        let c = [
+            edge[0] + sm.outward[0] * dir * (8.0 + PAD_HALF),
+            edge[1] + TOWER_ABOVE_WALL,
+            edge[2] + sm.outward[2] * dir * (8.0 + PAD_HALF),
+        ];
         let (t, sd) = track::pad(c, PAD_HALF, water_y);
         pad_top.positions.extend(t.positions);
         pad_top.uvs.extend(t.uvs);
@@ -618,7 +640,17 @@ fn ge_dam_speedway(rom_path: &str, dir: &str, variant: &str) -> Result<(), Strin
         guard(c, sm.across(oval.width / 2.0), n_guards);
         n_guards += 1;
     }
-    for &c in &crest {
+    // Crest guards stand on towers from the walkway up past the turn's banked outer wall.
+    let crest_top = oval.base_y + oval.width * oval.bank_degrees.to_radians().sin() + TOWER_ABOVE_WALL;
+    for &w in &crest {
+        let c = [w[0], crest_top.max(w[1]), w[2]];
+        let (t, sd) = track::pad(c, PAD_HALF, w[1]);
+        pad_top.positions.extend(t.positions);
+        pad_top.uvs.extend(t.uvs);
+        pad_top.colors.extend(t.colors);
+        pad_sides.positions.extend(sd.positions);
+        pad_sides.uvs.extend(sd.uvs);
+        pad_sides.colors.extend(sd.colors);
         guard(c, [oval.cx, c[1], oval.cz], n_guards);
         n_guards += 1;
     }
@@ -684,7 +716,7 @@ fn ge_dam_speedway(rom_path: &str, dir: &str, variant: &str) -> Result<(), Strin
     std::fs::write(out.join(format!("{track}_mk64.json")), layout).map_err(|e| e.to_string())?;
     println!(
         "{track}: lap {:.0} MK64 units, road {:.0} wide, banking {} deg; water at y {water_y} (GE); {} scenery triangles, \
-         {} materials, path {} points, {n_guards} guards, {n_barrels} barrels -> {}",
+         {} materials, path {} points, {n_guards} guards, {n_barrels} barrels, {dropped} scenery triangles in the road dropped -> {}",
         oval.lap_length() * SCALE,
         oval.width * SCALE,
         oval.bank_degrees,
@@ -786,7 +818,7 @@ fn ge_audio(rom_path: &str, mod_dir: &str) -> Result<(), String> {
         let (samples, marks) = n64audio::render(&song, &bank, until, *volume as f64);
         let frame_at = |tick: u64| marks.iter().filter(|m| m.0 <= tick).last().map_or(0, |m| m.1);
         let peak = samples.iter().fold(0.0f32, |m, &v| m.max(v.abs())).max(1e-6);
-        let gain = 0.89 / peak; // about -1 dB
+        let gain = 0.6 / peak; // about -4.4 dB: sits under MK64's engines and effects (user test: too loud)
         let file = format!("ge_{name}");
         std::fs::write(music_dir.join(format!("{file}.wav")), n64audio::wav(bank.sample_rate, &samples, gain)).map_err(|e| e.to_string())?;
         let frames = samples.len() / 2;
