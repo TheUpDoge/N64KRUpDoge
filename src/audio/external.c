@@ -1,6 +1,7 @@
 #include <libultraship.h>
 #include "n64kr/character.h" // N64KR HOOK
 #include "n64kr/voice.h" // N64KR HOOK
+#include "n64kr/music.h" // N64KR HOOK
 #include <common_structs.h>
 #include <macros.h>
 #include <mk64.h>
@@ -2940,6 +2941,7 @@ void play_sequence(u16 arg0) {
 
     HMAS_Stop(HMAS_MUSIC); // Stop the current music sequence
 
+    n64kr_music_prepare(arg0); // N64KR HOOK: other games' songs (n64kr/music.cpp) register with HMAS on first use
     if(HMAS_IsIDRegistered(arg0)) {
         HMAS_Play(HMAS_MUSIC, arg0, true);
     } else {
@@ -3410,7 +3412,7 @@ void func_800CA49C(u8 arg0) {
         D_8018FC08 = D_8018FC08 + 1;
 
         // Audio: Speed up the music on the last lap
-        if(HMAS_IsPlaying(HMAS_MUSIC)){
+        if (!n64kr_music_final_lap() && HMAS_IsPlaying(HMAS_MUSIC)) { // N64KR HOOK: N64KR songs change song instead
             HMAS_AddEffect(HMAS_MUSIC, HMAS_EFFECT_PITCH, HMAS_INSTANT, 1,   1.2f);
             HMAS_AddEffect(HMAS_MUSIC, HMAS_EFFECT_PAUSE, HMAS_INSTANT, 110, 0.0f);
             HMAS_AddEffect(HMAS_MUSIC, HMAS_EFFECT_PAUSE, HMAS_INSTANT, 1,   1.0f);

@@ -1,9 +1,12 @@
 //! GoldenEye 007 (N64, US) content. Formats read from the n64decomp/007
 //! decompilation (commit c435646).
 
+pub mod anim;
+pub mod audio;
 pub mod bg;
 pub mod dl;
 mod images_us;
+pub mod model;
 pub mod tex;
 
 /// SHA-1 of the US ROM the tables below belong to (decomp ge007.u.sha1).

@@ -1,8 +1,10 @@
-//! GoldenEye room display lists -> triangles.
+//! GoldenEye display lists -> triangles (level rooms and object models).
 //!
-//! The room lists use Rare's Fast3D variant (decomp include/gbi_extension.h):
+//! Both use Rare's Fast3D variant (decomp include/gbi_extension.h):
+//! - 0x01 G_MTX: w1 = matrix address (segment 3, 64 bytes per matrix); object
+//!   models switch joints this way.
 //! - 0x04 G_VTX: n = ((w0 >> 20) & 0xF) + 1 vertices into slot (w0 >> 16) & 0xF,
-//!   from the room's vertex table (segment 0x0E, w1 & 0xFFFFFF).
+//!   from w1 (rooms: segment 0x0E, the room's vertex table; models: segment 4/5).
 //! - 0xBF G_TRI1: w1 = [_, v0 * 10, v1 * 10, v2 * 10].
 //! - 0xB1 G_TRI4: four triangles (x, y, z) as nibbles: z1..z4 in w0 bits 0-15,
 //!   x1 y1 .. x4 y4 in w1 (x low nibble, y high nibble of each byte, from bit 0).
@@ -12,7 +14,7 @@
 //! - 0xB8 end. Other commands (render modes, combiners, colours) don't change geometry.
 //!
 //! Vertices (N64 Vtx, 16 bytes: s16 x, y, z, flag, s16 s, t, u8 r, g, b, a) are
-//! relative to the room's position in the room table.
+//! relative to the room's position (rooms) or the current joint (models).
 
 use crate::rom::{s16_be, u32_be};
 
@@ -23,6 +25,7 @@ pub struct Vertex {
     pub rgba: [u8; 4],
 }
 
+#[derive(Clone)]
 pub struct Triangle {
     pub texture: Option<usize>,
     pub translucent: bool,
@@ -38,9 +41,20 @@ fn shift_factor(shift: u32) -> f32 {
     }
 }
 
-pub fn room_triangles(dl: &[u8], vertices: &[u8], room_pos: [f32; 3], translucent: bool, out: &mut Vec<Triangle>) {
+/// Where a display list's vertices live and how they are placed.
+pub struct Source<'a> {
+    /// Memory the G_VTX addresses point into.
+    pub memory: &'a [u8],
+    /// G_VTX address -> offset in `memory` (None: skip the load).
+    pub resolve: &'a dyn Fn(u32) -> Option<usize>,
+    /// Transform for vertices loaded under a matrix (None before any G_MTX).
+    pub place: &'a dyn Fn(Option<u32>, [f32; 3]) -> [f32; 3],
+}
+
+pub fn triangles(dl: &[u8], src: &Source, translucent: bool, out: &mut Vec<Triangle>) {
     let mut slots = [Vertex::default(); 16];
     let mut texture: Option<usize> = None;
+    let mut matrix: Option<u32> = None;
     let (mut scale_s, mut scale_t) = (1.0f32, 1.0f32);
     let (mut shift_s, mut shift_t) = (1.0f32, 1.0f32);
 
@@ -53,25 +67,24 @@ pub fn room_triangles(dl: &[u8], vertices: &[u8], room_pos: [f32; 3], translucen
         out.push(Triangle { texture, translucent, v: [texel(slots[a]), texel(slots[b]), texel(slots[c])] });
     };
 
+    let vertices = src.memory;
     for cmd in dl.chunks_exact(8) {
         let w0 = u32_be(cmd, 0);
         let w1 = u32_be(cmd, 4);
         match cmd[0] {
+            0x01 => matrix = Some((w1 & 0xFF_FFFF) / 0x40),
             0x04 => {
                 let n = (((w0 >> 20) & 0xF) + 1) as usize;
                 let first = ((w0 >> 16) & 0xF) as usize;
-                let base = (w1 & 0xFF_FFFF) as usize;
+                let Some(base) = (src.resolve)(w1) else { continue };
                 for i in 0..n {
                     let o = base + i * 16;
                     if first + i >= 16 || o + 16 > vertices.len() {
                         break;
                     }
+                    let local = [s16_be(vertices, o) as f32, s16_be(vertices, o + 2) as f32, s16_be(vertices, o + 4) as f32];
                     slots[first + i] = Vertex {
-                        pos: [
-                            s16_be(vertices, o) as f32 + room_pos[0],
-                            s16_be(vertices, o + 2) as f32 + room_pos[1],
-                            s16_be(vertices, o + 4) as f32 + room_pos[2],
-                        ],
+                        pos: (src.place)(matrix, local),
                         st: [s16_be(vertices, o + 8) as f32, s16_be(vertices, o + 10) as f32],
                         rgba: [vertices[o + 12], vertices[o + 13], vertices[o + 14], vertices[o + 15]],
                     };
@@ -111,4 +124,49 @@ pub fn room_triangles(dl: &[u8], vertices: &[u8], room_pos: [f32; 3], translucen
             _ => {}
         }
     }
+}
+
+/// A level room's display list: vertices from the room's table (segment 0x0E), placed at the room's position.
+pub fn room_triangles(dl: &[u8], vertices: &[u8], room_pos: [f32; 3], translucent: bool, out: &mut Vec<Triangle>) {
+    let resolve = |a: u32| Some((a & 0xFF_FFFF) as usize);
+    let place = |_: Option<u32>, p: [f32; 3]| [p[0] + room_pos[0], p[1] + room_pos[1], p[2] + room_pos[2]];
+    triangles(dl, &Source { memory: vertices, resolve: &resolve, place: &place }, translucent, out);
+}
+
+/// Keeps the part of each triangle where `side(position) >= 0`, cutting
+/// triangles that cross the boundary (texture coordinates and colours interpolated).
+pub fn clip(tris: &[Triangle], side: impl Fn([f32; 3]) -> f32) -> Vec<Triangle> {
+    let lerp = |a: Vertex, b: Vertex, k: f32| {
+        let mix = |x: f32, y: f32| x + (y - x) * k;
+        Vertex {
+            pos: [mix(a.pos[0], b.pos[0]), mix(a.pos[1], b.pos[1]), mix(a.pos[2], b.pos[2])],
+            st: [mix(a.st[0], b.st[0]), mix(a.st[1], b.st[1])],
+            rgba: std::array::from_fn(|i| mix(a.rgba[i] as f32, b.rgba[i] as f32).round() as u8),
+        }
+    };
+    let mut out = Vec::with_capacity(tris.len());
+    for t in tris {
+        let d = t.v.map(|v| side(v.pos));
+        if d.iter().all(|&x| x >= 0.0) {
+            out.push(t.clone());
+            continue;
+        }
+        if d.iter().all(|&x| x < 0.0) {
+            continue;
+        }
+        let mut poly: Vec<Vertex> = Vec::with_capacity(4);
+        for i in 0..3 {
+            let j = (i + 1) % 3;
+            if d[i] >= 0.0 {
+                poly.push(t.v[i]);
+            }
+            if (d[i] >= 0.0) != (d[j] >= 0.0) {
+                poly.push(lerp(t.v[i], t.v[j], d[i] / (d[i] - d[j])));
+            }
+        }
+        for k in 1..poly.len().saturating_sub(1) {
+            out.push(Triangle { texture: t.texture, translucent: t.translucent, v: [poly[0], poly[k], poly[k + 1]] });
+        }
+    }
+    out
 }

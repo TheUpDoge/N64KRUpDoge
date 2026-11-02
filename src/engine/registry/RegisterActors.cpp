@@ -1,6 +1,7 @@
 #include "engine/registry/RegisterContent.h"
 #include "engine/CoreMath.h"
 #include "engine/AllActors.h"
+#include "n64kr/ge_hazards.h" // N64KR HOOK
 
 extern "C" {
 #include "common_structs.h"
@@ -275,4 +276,6 @@ void RegisterActors(Registry<ActorInfo, const SpawnParams&>& r) {
 
     info = { .ResourceName = "mk:bowser_statue", .Name = "Bowser Statue" };
     r.Add(info, AddActorToWorld<ABowserStatue>);
+
+    n64kr_register_actors(r); // N64KR HOOK: GoldenEye barrels and guards (n64kr/ge_hazards.cpp), after the stock ids
 }

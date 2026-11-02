@@ -182,6 +182,27 @@ pub fn build_oval(oval: &Oval, step: f32, wall_height: f32, oob_y: f32) -> OvalM
     OvalMeshes { road, walls, out_of_bounds, samples }
 }
 
+/// A sentry pad: a square box `half` wide each way around `top` (its top
+/// centre), down to `bottom_y`. Returns (top, sides).
+pub fn pad(top: [f32; 3], half: f32, bottom_y: f32) -> (Mesh, Mesh) {
+    let white = [255, 255, 255, 255];
+    let (x0, x1, z0, z1, y1) = (top[0] - half, top[0] + half, top[2] - half, top[2] + half, top[1]);
+    let mut t = Mesh::default();
+    t.quad([[x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0]], [[0.0, 0.0], [0.0, 1.0], [1.0, 1.0], [1.0, 0.0]], white);
+    let mut sides = Mesh::default();
+    let v = (y1 - bottom_y) / (half * 2.0);
+    let corners = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
+    for i in 0..4 {
+        let (a, b) = (corners[i], corners[(i + 1) % 4]);
+        sides.quad(
+            [[a[0], bottom_y, a[1]], [b[0], bottom_y, b[1]], [b[0], y1, b[1]], [a[0], y1, a[1]]],
+            [[0.0, v], [1.0, v], [1.0, 0.0], [0.0, 0.0]],
+            white,
+        );
+    }
+    (t, sides)
+}
+
 /// The road's centre line in MK64 units, every `step` source units, for the
 /// AI path and minimap.
 pub fn path(oval: &Oval, place: &Placement, step: f32) -> Vec<[f32; 3]> {
@@ -190,7 +211,8 @@ pub fn path(oval: &Oval, place: &Placement, step: f32) -> Vec<[f32; 3]> {
     (0..n).map(|i| place.apply(oval.sample(i as f32 * lap / n as f32).across(oval.width / 2.0))).collect()
 }
 
-/// `<track>_mk64.json` as blender_dkr_track.py / dkr_track_scene.py read it.
+/// `<track>_mk64.json` as blender_dkr_track.py / dkr_track_scene.py read it;
+/// `extra` = more JSON members (e.g. `"actors":[...],"sequence":20032`).
 pub fn layout_json(
     track: &str,
     scale: f32,
@@ -198,6 +220,7 @@ pub fn layout_json(
     item_boxes: &[[f32; 3]],
     sky_top: [u8; 3],
     sky_horizon: [u8; 3],
+    extra: &str,
 ) -> String {
     let pts = |v: &[[f32; 3]]| {
         let mut s = String::new();
@@ -209,7 +232,7 @@ pub fn layout_json(
     format!(
         "{{\"track\":\"{track}\",\"units\":\"MK64 (N64 coordinates, Y up). Path point 0 at origin, racing towards -Z.\",\
          \"scale_from_source\":{scale},\"y_offset\":4.0,\"path\":[{}],\"checkpoints\":[],\"start_grid\":[],\
-         \"item_boxes\":[{}],\"zippers\":[],\"spawn_finishline\":true,\"sky\":{{\"top\":[{},{},{}],\"horizon\":[{},{},{}]}}}}",
+         \"item_boxes\":[{}],\"zippers\":[],\"spawn_finishline\":true,\"sky\":{{\"top\":[{},{},{}],\"horizon\":[{},{},{}]}}{}{extra}}}",
         pts(path),
         pts(item_boxes),
         sky_top[0],
@@ -217,6 +240,7 @@ pub fn layout_json(
         sky_top[2],
         sky_horizon[0],
         sky_horizon[1],
-        sky_horizon[2]
+        sky_horizon[2],
+        if extra.is_empty() { "" } else { "," }
     )
 }

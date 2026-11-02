@@ -145,12 +145,19 @@ def main():
     props = dict(DEFAULT_PROPS)
     props.update(scene.get("Props") or {})
     props["Name"] = display_name
-    props["DebugName"] = f"dkr {track}"[:15]
+    props["DebugName"] = f"{prefix} {track}"[:15]
     props["ResourceName"] = f"n64kr:{prefix}_{track}"
     scene["Props"] = props
     scene.setdefault("Fog", {"EnableFog": False})
     scene.setdefault("StaticMeshActors", None)
     scene["Actors"] = item_boxes(layout)
+    # Extra actors from the layout, as written (e.g. N64KR's GoldenEye barrels
+    # and guards, src/n64kr/ge_hazards.cpp), and the track's music: a sequence
+    # id, or an N64KR song id played through HMAS (src/n64kr/music.cpp).
+    extra = layout.get("actors", [])
+    scene["Actors"] += extra
+    if "sequence" in layout:
+        props["Sequence"] = int(layout["sequence"])
     # DKR tracks have their own start banner, so MK64's finish line arch is off
     # unless the layout asks for it (built tracks like GoldenEye's Dam Speedway).
     # Read by the N64KR hook in src/engine/editor/SceneManager.cpp.
@@ -173,8 +180,8 @@ def main():
 
     with open(scene_path, "w", newline="\n") as f:
         json.dump(scene, f, indent=2)
-    print(f"Wrote {scene_path}: '{display_name}', {len(scene['Actors'])} item boxes "
-          f"({len(layout['item_boxes'])} rows of {ITEM_ROW}).")
+    print(f"Wrote {scene_path}: '{display_name}', {len(scene['Actors']) - len(extra)} item boxes "
+          f"({len(layout['item_boxes'])} rows of {ITEM_ROW}), {len(extra)} other actors, sequence {props['Sequence']}.")
 
 
 if __name__ == "__main__":

@@ -33,6 +33,7 @@
 #include "SpaghettiGui.h"
 
 #include "port/interpolation/FrameInterpolation.h"
+#include "n64kr/sfx.h" // N64KR HOOK
 #include <fast/Fast3dWindow.h>
 #include <fast/interpreter.h>
 // #include <Fast3D/gfx_rendering_api.h>
@@ -505,6 +506,7 @@ void GameEngine::HandleAudioThread() {
         }
 
         GameEngine::Instance->gHMAS->CreateBuffer((u8*)hmas_buffer, 4 * num_audio_samples * sizeof(float));
+        n64kr_sfx_mix(hmas_buffer, 2 * num_audio_samples); // N64KR HOOK: own positional sounds (n64kr/sfx.cpp)
 
         float master_vol = CVarGetFloat("gGameMasterVolume", 1.0f);
 
