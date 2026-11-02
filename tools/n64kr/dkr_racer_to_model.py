@@ -8,8 +8,9 @@ under build/, never commit):
   tex_<n>               RGBA16 texture resources (DKR textures, wheel faces)
   mat_<n>               material display lists (combiner, render mode, texture load)
   pose<p>_<group>_vtx   vertex buffers, one per driving pose and material group
-  pose<p>               one display list per pose: body + all four wheels
-  model.json            pose frames, scale, ground offset (for reference)
+  pose<p>               one display list per pose: body + rear wheels
+  wheel<k>              front (steering) wheels, built around their centre
+  model.json            pose count, scale, front wheel centres (read by the engine)
 
 Model space: DKR model units, Y up, turned to face +Z (DKR models face -Z):
 (x, y, z) -> (-x, y - ground, -z), so the tyres' bottom is y = 0. The engine
@@ -94,12 +95,13 @@ class Writer:
                  '\t<SetTexturePersp Enable="G_TP_PERSP"/>',
                  '\t<SetTextureLUT Mode="G_TT_NONE"/>']
         if tex_name:
-            # colour = texel x shade (vertex colour), alpha = texel; cutout edges
+            # colour = texel x shade (vertex colour), alpha = texel x primitive alpha.
+            # No render mode here: the engine sets it with the primitive alpha
+            # (opaque cutout normally, translucent for Boo / the boost afterimage).
             lines += ['\t<SetCombineLERP A0="G_CCMUX_TEXEL0" B0="G_CCMUX_0" C0="G_CCMUX_SHADE" D0="G_CCMUX_0" '
-                      'Aa0="G_ACMUX_0" Ab0="G_ACMUX_0" Ac0="G_ACMUX_0" Ad0="G_ACMUX_TEXEL0" '
+                      'Aa0="G_ACMUX_TEXEL0" Ab0="G_ACMUX_0" Ac0="G_ACMUX_PRIMITIVE" Ad0="G_ACMUX_0" '
                       'A1="G_CCMUX_TEXEL0" B1="G_CCMUX_0" C1="G_CCMUX_SHADE" D1="G_CCMUX_0" '
-                      'Aa1="G_ACMUX_0" Ab1="G_ACMUX_0" Ac1="G_ACMUX_0" Ad1="G_ACMUX_TEXEL0"/>',
-                      '\t<SetRenderMode Mode1="G_RM_AA_ZB_TEX_EDGE" Mode2="G_RM_AA_ZB_TEX_EDGE2" />',
+                      'Aa1="G_ACMUX_TEXEL0" Ab1="G_ACMUX_0" Ac1="G_ACMUX_PRIMITIVE" Ad1="G_ACMUX_0"/>',
                       '\t<Texture S="65535" T="65535" Level="0" Tile="0" On="1"/>',
                       f'\t<SetTextureImage Path="{self.res(tex_name)}" Format="G_IM_FMT_RGBA" Size="G_IM_SIZ_16b_LOAD_BLOCK" Width="1"/>',
                       '\t<SetTile Format="G_IM_FMT_RGBA" Size="G_IM_SIZ_16b_LOAD_BLOCK" Line="0" TMem="0" Tile="7" Palette="0" '
@@ -113,10 +115,9 @@ class Writer:
                       f'\t<SetTileSize T="0" Uls="0" Ult="0" Lrs="{(w - 1) << 2}" Lrt="{(h - 1) << 2}"/>']
         else:
             lines += ['\t<SetCombineLERP A0="G_CCMUX_0" B0="G_CCMUX_0" C0="G_CCMUX_0" D0="G_CCMUX_SHADE" '
-                      'Aa0="G_ACMUX_0" Ab0="G_ACMUX_0" Ac0="G_ACMUX_0" Ad0="G_ACMUX_SHADE" '
+                      'Aa0="G_ACMUX_SHADE" Ab0="G_ACMUX_0" Ac0="G_ACMUX_PRIMITIVE" Ad0="G_ACMUX_0" '
                       'A1="G_CCMUX_0" B1="G_CCMUX_0" C1="G_CCMUX_0" D1="G_CCMUX_SHADE" '
-                      'Aa1="G_ACMUX_0" Ab1="G_ACMUX_0" Ac1="G_ACMUX_0" Ad1="G_ACMUX_SHADE"/>',
-                      '\t<SetRenderMode Mode1="G_RM_AA_ZB_OPA_SURF" Mode2="G_RM_AA_ZB_OPA_SURF2" />',
+                      'Aa1="G_ACMUX_SHADE" Ab1="G_ACMUX_0" Ac1="G_ACMUX_PRIMITIVE" Ad1="G_ACMUX_0"/>',
                       '\t<Texture S="65535" T="65535" Level="0" Tile="0" On="0"/>']
         lines += ['\t<EndDisplayList/>', '</DisplayList>', '']
         self.write(name, "\n".join(lines))
@@ -207,13 +208,29 @@ def export(rom, object_name, name, mod_dir):
         tread = tuple(sum(p[c] for p in opaque) // max(1, len(opaque)) for c in range(3)) if opaque else (60, 20, 20)
         discs, tread_corners, radius = wheel_corners(wheel, (tw, th), tread)
         wheel_mats.append(mat)
-        wheel_geo.append((discs, tread_corners))
+        wheel_geo.append((discs, tread_corners, wheel))
         bottom = wheel["position"][1] - radius
         ground = bottom if ground is None else min(ground, bottom)
     ground = ground if ground is not None else 0
 
     def to_model(x, y, z):  # DKR model space -> N64KR model space (face +Z, tyres on y = 0)
         return clamp16(-x), clamp16(y - ground), clamp16(-z)
+
+    def wheel_lines(k, geo, centre):
+        discs, tread_corners, _wheel = geo
+        cx, cy, cz = centre
+
+        def rel(x, y, z):
+            mx, my, mz = to_model(x, y, z)
+            return mx - cx, my - cy, mz - cz
+
+        disc_out = [rel(x, y, z) + (clamp16(s), clamp16(t), 255, 255, 255, 255) for x, y, z, s, t in discs]
+        tread_out = [rel(x, y, z) + (0, 0, r, g, b, a) for x, y, z, _s, _t, r, g, b, a in tread_corners]
+        lines = [f'\t<CallDisplayList Path="{writer.res(wheel_mats[k])}"/>']
+        lines += tri_lists(f"wheel{k}_discs_vtx", disc_out, writer)
+        lines.append(f'\t<CallDisplayList Path="{writer.res(writer.material("vertex_colour"))}"/>')
+        lines += tri_lists(f"wheel{k}_tread_vtx", tread_out, writer)
+        return lines
 
     frames = racer["anim_frames"]
     for p, frame_index in enumerate(POSE_FRAMES):
@@ -228,18 +245,26 @@ def export(rom, object_name, name, mod_dir):
                 out.append(to_model(x, y, z) + (clamp16(s * su), clamp16(t * sv), r, g, b, a))
             dl.append(f'\t<CallDisplayList Path="{writer.res(mat_name)}"/>')
             dl += tri_lists(f"pose{p}_g{gi}_vtx", out, writer)
-        for k, (discs, tread_corners) in enumerate(wheel_geo):
-            disc_out = [to_model(x, y, z) + (clamp16(s), clamp16(t), 255, 255, 255, 255) for x, y, z, s, t in discs]
-            tread_out = [to_model(x, y, z) + (0, 0, r, g, b, a) for x, y, z, _s, _t, r, g, b, a in tread_corners]
-            dl.append(f'\t<CallDisplayList Path="{writer.res(wheel_mats[k])}"/>')
-            dl += tri_lists(f"wheel{k}_discs_vtx", disc_out, writer)
-            dl.append(f'\t<CallDisplayList Path="{writer.res(writer.material("vertex_colour"))}"/>')
-            dl += tri_lists(f"wheel{k}_tread_vtx", tread_out, writer)
+        for k, geo in enumerate(wheel_geo):
+            if not geo[2]["steers"]:  # rear wheels ride with the body
+                dl += wheel_lines(k, geo, (0, 0, 0))
         dl += ['\t<PipeSync/>', '\t<EndDisplayList/>', '</DisplayList>', '']
         writer.write(f"pose{p}", "\n".join(dl))
 
-    info = {"object": object_name, "poses": POSE_FRAMES, "straight_pose": POSE_FRAMES.index(40),
-            "world_scale": WORLD_SCALE, "ground_dkr_units": ground,
+    # Front (steering) wheels: one display list each, built around the wheel
+    # centre so the engine can turn it (DKR steers attach points 2 and 3).
+    front = []
+    for k, geo in enumerate(wheel_geo):
+        if geo[2]["steers"]:
+            centre = to_model(*geo[2]["position"])
+            dl = ['<DisplayList Version="0">'] + wheel_lines(k, geo, centre)
+            dl += ['\t<PipeSync/>', '\t<EndDisplayList/>', '</DisplayList>', '']
+            writer.write(f"wheel{k}", "\n".join(dl))
+            front.append({"dl": f"wheel{k}", "centre": list(centre)})
+
+    info = {"object": object_name, "poses": POSE_FRAMES, "pose_count": len(POSE_FRAMES),
+            "straight_pose": POSE_FRAMES.index(40), "world_scale": WORLD_SCALE, "ground_dkr_units": ground,
+            "front_wheels": front,
             "space": "DKR units, Y up, facing +Z, tyre bottom at y = 0"}
     with open(os.path.join(out_dir, "model.json"), "w") as fh:
         json.dump(info, fh, indent=1)

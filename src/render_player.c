@@ -1526,6 +1526,11 @@ void func_80025DE8(Player* player, s8 playerId, s8 screenId, s8 flipOffset) {
 
     FrameInterpolation_RecordOpenChild("player_boost", (playerId << 4) | screenId);
 
+    if (n64kr_racer3d_draw_boost(player, playerId, screenId, sp9C)) { // N64KR HOOK: 3D afterimage, no sprite
+        FrameInterpolation_RecordCloseChild();
+        return;
+    }
+
     mtxf_translate_rotate(mtx, sp9C, sp94);
     mtxf_scale(mtx, gCharacterSize[n64kr_char_body(player->characterId)] * player->size);
     // convert_to_fixed_point_matrix(&gGfxPool->mtxEffect[gMatrixEffectCount], mtx);
