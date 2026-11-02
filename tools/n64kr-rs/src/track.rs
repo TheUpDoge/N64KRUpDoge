@@ -156,9 +156,11 @@ pub fn build_oval(oval: &Oval, step: f32, wall_height: f32, oob_y: f32) -> OvalM
         for k in 0..2 {
             let (w0, w1) = (oval.width * k as f32 / 2.0, oval.width * (k + 1) as f32 / 2.0);
             let (u0, u1) = (k as f32 / 2.0, (k + 1) as f32 / 2.0);
+            // Counter-clockwise seen from above (normal up): MK64 collision
+            // treats down-facing triangles as ceilings and karts fall through.
             road.quad(
-                [a.across(w0), b.across(w0), b.across(w1), a.across(w1)],
-                [[u0, v0], [u0, v0 + dv_road], [u1, v0 + dv_road], [u1, v0]],
+                [a.across(w0), a.across(w1), b.across(w1), b.across(w0)],
+                [[u0, v0], [u1, v0], [u1, v0 + dv_road], [u0, v0 + dv_road]],
                 white,
             );
         }
