@@ -39,8 +39,9 @@ POSE_FRAMES = [0, 10, 20, 30, 40, 48, 56, 64, 73]  # full right .. straight .. f
 # World units per DKR model unit, applied by the engine (read from model.json).
 # First estimate 0.12 from the 18 x 18 unit sprite quad (src/data/some_data.c
 # gPlayerOneVtx) and the SLICE-9 sprite fit; in game Diddy read about twice
-# MK64 racer size (user playtest), so half that.
-WORLD_SCALE = 0.06
+# MK64 racer size, then at half that a little small (user playtests: "20 to
+# 35% larger"), so 0.06 x 1.3.
+WORLD_SCALE = 0.078
 VERTS_PER_LOAD = 30
 WHEEL_SIDES = 10
 # DKR draws wheels as flat camera-facing sprites; as solid cylinders at the

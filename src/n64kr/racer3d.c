@@ -127,7 +127,12 @@ static void draw_model(const N64krRacerModel* model, const Player* player, s32 p
         gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
     }
 
+    // Leave the state MK64's own racer and shadow drawing expects: their setup
+    // lists (common_setting_render_character, D_0D008D10) never set the cycle
+    // type, so the model's 2-cycle mode would carry into every racer and
+    // shadow drawn after it (they vanished / broke in the user's test).
     gDPPipeSync(gDisplayListHead++);
+    gDPSetCycleType(gDisplayListHead++, G_CYC_1CYCLE);
     gSPTexture(gDisplayListHead++, 1, 1, 0, G_TX_RENDERTILE, G_OFF);
     gDPSetAlphaCompare(gDisplayListHead++, G_AC_NONE);
 }
