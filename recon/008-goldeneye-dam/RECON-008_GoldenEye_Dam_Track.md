@@ -2,7 +2,7 @@
 
 Project: N64 Kart Racing (N64KR)
 Date: 2026-11-01
-Status: Dam Speedway A and B with hazards, music and sound built; in-game test pending
+Status: Dam Speedway A and B with hazards, music and sound — tested in game (user, 2026-11-02)
 
 ## Goal (user, 2026-11-01)
 A custom race track built from GoldenEye 007's Dam level, "maybe 2 to 4 of them linked together, just to push the limits". Later phases asked for: GoldenEye guards kept on the track and shooting at racers; GoldenEye sounds; the GoldenEye intro.
@@ -84,3 +84,6 @@ A custom race track built from GoldenEye 007's Dam level, "maybe 2 to 4 of them 
 - Each track gets two copies outside the outer wall on opposite straights (A: east 0.85, west 0.35; B: east 0.3, west 0.7), turned so the tower's reservoir side faces the road, lowered so its floor is at the road's level (shaft into the water, balcony 23 above the wall tops). One guard per balcony, 85 units in front of the tower's centre; guards 20 MK64 units tall (sized to the tower), range 900. Sentry pads and crest guards removed.
 - Barrels: pairs across the road with open lanes, 2 pairs on A, 3 on B.
 - Item boxes: `update_actor_item_box` floats a box to 8.66 above the height it was spawned at; the layout added 15 on top, so they hung ~24 above the road. They now spawn at the road's height.
+
+### Third in-game test (user, 2026-11-02) [VERIFIED: user]
+- "Everything is much better" — watchtowers with guards, fewer barrels, item boxes, music on both tracks, road collision, banking and sound accepted. The GoldenEye content path (level geometry, models, animation, music, sound from the user's ROM into SpaghettiKart) is proven; moving on.

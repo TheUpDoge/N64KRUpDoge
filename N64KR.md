@@ -22,10 +22,10 @@ All game content comes from **your own ROMs** at build or run time. This reposit
 | Character registry | Racers are registry entries (`src/n64kr/character.c`): each names which MK64 character it borrows voice, HUD, size, AI and stats from until it has its own, plus optional own assets. MK64's 8 map to themselves, so the game is unchanged. Id 8 stays MK64's "no character" marker; new characters start at 9. | Tested in game |
 | **Diddy Kong** | A full new character from DKR: kart sprites rendered from his DKR 3D model (driving pose, steering wheels), portrait, minimap icon, name, his own DKR voice clips, a select screen cell, and CPU appearances in Grand Prix. | Tested in game |
 | Select screen pages | Push past the edge of the character grid to turn to the **DKR page**. MK64's 8-cell layout and menu code stay as they are; a page layer maps (page, cell) to a character. | Tested in game |
-| **Dam Speedway** (GoldenEye) | A banked oval built over the reservoir of GoldenEye's Dam level, from your GoldenEye ROM: the level's scenery, Dam's own asphalt and striped walls, banked turns, water rescue. | Built; in-game test pending |
-| **Dam Speedway B** | Two Dams facing each other, joined across the water: a longer oval with a dam wall behind each turn. | Built; in-game test pending |
-| GoldenEye hazards | Oil drums on the road explode when touched (chain reactions, racers tumble); Dam guards (real GoldenEye models and animation) raise their KF7s and fire bursts at passing racers. | Built; in-game test pending |
-| GoldenEye music and sound | The Dam theme plays on the Dam tracks (rendered from GoldenEye's own sequences and instruments, looping); gunfire, explosions, ricochets. | Built; in-game test pending |
+| **Dam Speedway** (GoldenEye) | A banked oval built over the reservoir of GoldenEye's Dam level, from your GoldenEye ROM: the level's scenery, Dam's own asphalt and striped walls, banked turns, water rescue. | Tested in game |
+| **Dam Speedway B** | Two Dams facing each other, joined across the water: a longer oval with a dam wall behind each turn. | Tested in game |
+| GoldenEye hazards | Oil drums on the road explode when touched (chain reactions, racers tumble); two of Dam's own watchtowers per track, each with a Dam guard (real GoldenEye model and animation) who raises his KF7 and fires bursts at passing racers. | Tested in game |
+| GoldenEye music and sound | The Dam theme plays on the Dam tracks (rendered from GoldenEye's own sequences and instruments, looping; the action version on the final lap); gunfire, explosions, ricochets. | Tested in game |
 | **3D racers** | Characters with a 3D model are drawn as real-time 3D instead of sprites (Diddy, from his DKR model, with steering poses). Boo/Lakitu translucency, boost afterimage and steering front wheels in progress. Sprites stay as the fallback. | Body tested in game; effects built, not yet tested |
 
 ### Known limits
@@ -57,7 +57,7 @@ New tools are written in Rust: one `n64kr` program, `cargo build --release` in t
 
 | Command | Input → output |
 |---|---|
-| `ge-bg-info`, `ge-textures`, `ge-gltf` | A GoldenEye level's rooms, textures, or the whole level as glTF. |
+| `ge-bg-info`, `ge-textures`, `ge-gltf`, `ge-rooms-gltf` | A GoldenEye level's rooms (with bounding boxes), textures, the whole level or chosen rooms as glTF. |
 | `ge-images` | GoldenEye images by number (sprites, effects) as PNG. |
 | `ge-model` | An object model (props, guards, heads, guns): node tree, glTF; guards posed by an animation frame. |
 | `ge-guard` | A posed Dam guard with head and KF7, as glTF (for checking poses). |
