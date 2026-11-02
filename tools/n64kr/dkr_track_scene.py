@@ -130,12 +130,13 @@ def minimap(layout):
 
 
 def main():
-    if len(sys.argv) != 5:
+    if len(sys.argv) not in (5, 6):
         sys.exit(__doc__)
-    src_dir, mods_dir, track, display_name = sys.argv[1:]
+    src_dir, mods_dir, track, display_name = sys.argv[1:5]
+    prefix = sys.argv[5] if len(sys.argv) == 6 else "dkr"  # source game, as blender_dkr_track.py
     layout = json.load(open(os.path.join(src_dir, f"{track}_mk64.json")))
-    mod_name = f"n64kr-dkr-{track.replace('_', '-')}"
-    track_dir = os.path.join(mods_dir, mod_name, "tracks", f"dkr_{track}")
+    mod_name = f"n64kr-{prefix}-{track.replace('_', '-')}"
+    track_dir = os.path.join(mods_dir, mod_name, "tracks", f"{prefix}_{track}")
     if not os.path.isdir(track_dir):
         sys.exit(f"{track_dir} not found; run blender_dkr_track.py first.")
     scene_path = os.path.join(track_dir, "scene.json")
@@ -145,14 +146,15 @@ def main():
     props.update(scene.get("Props") or {})
     props["Name"] = display_name
     props["DebugName"] = f"dkr {track}"[:15]
-    props["ResourceName"] = f"n64kr:dkr_{track}"
+    props["ResourceName"] = f"n64kr:{prefix}_{track}"
     scene["Props"] = props
     scene.setdefault("Fog", {"EnableFog": False})
     scene.setdefault("StaticMeshActors", None)
     scene["Actors"] = item_boxes(layout)
-    # DKR tracks have their own start banner; skip MK64's finish line arch
-    # (read by the N64KR hook in src/engine/editor/SceneManager.cpp).
-    scene["SpawnFinishline"] = False
+    # DKR tracks have their own start banner, so MK64's finish line arch is off
+    # unless the layout asks for it (built tracks like GoldenEye's Dam Speedway).
+    # Read by the N64KR hook in src/engine/editor/SceneManager.cpp.
+    scene["SpawnFinishline"] = bool(layout.get("spawn_finishline", False))
 
     sky = layout.get("sky")
     if sky:
@@ -161,7 +163,7 @@ def main():
         # SkyboxColours order: TopRight, BottomRight, BottomLeft, TopLeft, then the
         # four floor colours (src/engine/tracks/Track.h).
         props["Skybox"] = top + horizon + horizon + top + horizon + floor + floor + horizon
-        print(f"Sky from DKR '{sky['dome']}': top {top}, horizon {horizon}")
+        print(f"Sky from {sky.get('dome', 'layout')}: top {top}, horizon {horizon}")
 
     png, minimap_props, size = minimap(layout)
     with open(os.path.join(track_dir, "minimap.png"), "wb") as f:

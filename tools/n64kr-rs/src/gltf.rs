@@ -11,6 +11,9 @@ pub struct Material {
     pub image: Option<String>,
     /// "OPAQUE", "MASK" or "BLEND".
     pub alpha_mode: &'static str,
+    /// Extra JSON members for the material's "extras" (e.g. "\"mk64_surface\":\"ASPHALT\"");
+    /// Blender's importer keeps them as custom properties.
+    pub extras: String,
 }
 
 pub struct Primitive {
@@ -92,9 +95,10 @@ pub fn write(dir: &Path, name: &str, materials: &[Material], primitives: &[Primi
             String::new()
         };
         let cutoff = if m.alpha_mode == "MASK" { ",\"alphaCutoff\":0.5" } else { "" };
+        let extras = if m.extras.is_empty() { String::new() } else { format!(",\"extras\":{{{}}}", m.extras) };
         let _ = write!(
             mats,
-            "{}{{\"name\":\"{}\",\"pbrMetallicRoughness\":{{\"metallicFactor\":0,\"roughnessFactor\":1{tex}}},\"doubleSided\":true,\"alphaMode\":\"{}\"{cutoff}}}",
+            "{}{{\"name\":\"{}\",\"pbrMetallicRoughness\":{{\"metallicFactor\":0,\"roughnessFactor\":1{tex}}},\"doubleSided\":true,\"alphaMode\":\"{}\"{cutoff}{extras}}}",
             if i > 0 { "," } else { "" },
             m.name,
             m.alpha_mode

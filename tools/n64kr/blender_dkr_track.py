@@ -2,11 +2,12 @@
 track from a DKR track converted with `dkr_level_to_gltf.py --mk64`.
 
 Run headless:
-    blender.exe -b --python tools/n64kr/blender_dkr_track.py -- <converted dir> <mods dir> <track name>
+    blender.exe -b --python tools/n64kr/blender_dkr_track.py -- <converted dir> <mods dir> <track name> [prefix]
 e.g.
     blender.exe -b --python tools/n64kr/blender_dkr_track.py -- build/dkr_tracks/ancient_lake_mk64 build/x64/mods ancient_lake
 
-Writes <mods dir>/n64kr-dkr-<track>/ (mods.toml + tracks/dkr_<track>/...). The
+Writes <mods dir>/n64kr-<prefix>-<track>/ (mods.toml + tracks/<prefix>_<track>/...);
+prefix = source game, default dkr (ge for GoldenEye tracks, n64kr ge-dam-speedway). The
 output is built from ROM data: keep it under build/, never commit it.
 Optionally saves the .blend next to the converted files for hand edits.
 
@@ -22,13 +23,14 @@ import sys
 import bpy
 
 argv = sys.argv[sys.argv.index("--") + 1:]
-if len(argv) != 3:
+if len(argv) not in (3, 4):
     sys.exit(__doc__)
 src_dir, mods_dir, track = (os.path.abspath(argv[0]), os.path.abspath(argv[1]), argv[2])
+prefix = argv[3] if len(argv) == 4 else "dkr"
 gltf_path = os.path.join(src_dir, f"{track}.gltf")
 layout = json.load(open(os.path.join(src_dir, f"{track}_mk64.json")))
-mod_name = f"n64kr-dkr-{track.replace('_', '-')}"
-export_name = f"dkr_{track}"
+mod_name = f"n64kr-{prefix}-{track.replace('_', '-')}"
+export_name = f"{prefix}_{track}"
 mod_dir = os.path.join(mods_dir, mod_name)
 
 
