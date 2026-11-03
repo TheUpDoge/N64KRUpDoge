@@ -34,7 +34,7 @@ Run `$N64KR` with no arguments for the command list. Levels are named `dam`, `fa
 6. **Watchtowers:** rooms 78–80 are copied to two spots beside the road, with a guard on each balcony.
 7. **Layout JSON:** the AI path, start grid, item boxes, hazards (`"actors"`) and the music (`"sequence"`).
 
-Then `blender_dkr_track.py` and `dkr_track_scene.py` turn it into a mod, with `ge` as the prefix, so the track id is `n64kr:ge_dam_speedway`.
+Then `blender_dkr_track.py` and `n64kr dkr-track-scene` turn it into a mod, with `ge` as the prefix, so the track id is `n64kr:ge_dam_speedway`.
 
 ## 3. Guards, barrels and music on any track (no code)
 
@@ -58,7 +58,7 @@ Any custom track's `scene.json` can then use them: a converted DKR track, or a t
 - Barrels explode when a racer touches them (racers tumble), set off barrels nearby, and come back after 10 seconds.
 - Guards raise their KF7 and fire three-shot bursts at racers within range. A hit spins the racer out like a banana.
 - `Skin` picks the head: `dave`, `karl`, `mark` or `jim`.
-- Re-running `dkr_track_scene.py` rewrites the `Actors` list from the converted layout. To keep your additions, put them in the layout JSON's `"actors"` list (`build/.../<track>_mk64.json`), which the scene tool copies in.
+- Re-running `dkr-track-scene` rewrites the `Actors` list from the converted layout. To keep your additions, put them in the layout JSON's `"actors"` list (`build/.../<track>_mk64.json`), which the scene tool copies in.
 
 **Music:** set `"Sequence"` in the track's `"Props"` to an N64KR song id:
 
@@ -92,7 +92,7 @@ Say you want a Runway Speedway:
    ```bash
    $N64KR ge-runway-speedway "$GE" build/ge_tracks/runway_speedway
    "$BLENDER" -b -P tools/n64kr/blender_dkr_track.py -- build/ge_tracks/runway_speedway build/x64/mods runway_speedway ge
-   python -I tools/n64kr/dkr_track_scene.py build/ge_tracks/runway_speedway build/x64/mods runway_speedway "Runway Speedway" ge
+   $N64KR dkr-track-scene build/ge_tracks/runway_speedway build/x64/mods runway_speedway "Runway Speedway" ge
    ```
 5. **Add `n64kr:ge_runway_speedway`** to a cup ([TUTORIAL_ADD_DKR_TRACK.md](TUTORIAL_ADD_DKR_TRACK.md), section 3).
 

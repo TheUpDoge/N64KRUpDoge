@@ -1,5 +1,5 @@
 """Blender 4.3 script: HUD textures for a new N64KR character from a DKR racer
-export (dkr_racer_to_gltf.py): race portrait and minimap icons, styled after a
+export (`n64kr dkr-racer`, tools/n64kr-rs): race portrait and minimap icons, styled after a
 stock character's (frame, background, icon shapes read from mk64.o2r).
 
 Run headless:

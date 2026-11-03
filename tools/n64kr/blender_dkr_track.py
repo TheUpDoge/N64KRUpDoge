@@ -1,5 +1,5 @@
 """Blender (4.3 + HarbourMasters Fast64) script: build a SpaghettiKart custom
-track from a DKR track converted with `dkr_level_to_gltf.py --mk64`.
+track from a DKR track converted with `n64kr dkr-level --mk64` (tools/n64kr-rs).
 
 Run headless:
     blender.exe -b --python tools/n64kr/blender_dkr_track.py -- <converted dir> <mods dir> <track name> [prefix]

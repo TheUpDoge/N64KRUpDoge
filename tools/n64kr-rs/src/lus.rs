@@ -1,5 +1,5 @@
 //! libultraship resources, the port's mod format (Rust port of the writer in
-//! tools/n64kr/dkr_racer_to_model.py):
+//! the former tools/n64kr/dkr_racer_to_model.py; the DKR racer model now has its own in dkr/model.rs):
 //! - DisplayList and Vertex resources as XML (the format Fast64 writes).
 //! - Textures: 0x40-byte header ("OTEX", version 0) + u32 type (2 = RGBA16),
 //!   width, height, data size, then big-endian RGBA5551 texels.

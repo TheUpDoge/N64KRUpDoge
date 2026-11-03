@@ -44,35 +44,38 @@ All game content comes from **your own ROMs** at build or run time. This reposit
 
 ---
 
-## Tools (`tools/n64kr/`)
+## Tools
 
-All tools read **your own ROM** and write into `build/` (never committed). Python 3 (run with `python -I`); the Blender scripts need Blender 4.3 (headless, `-b`), and the track export also needs the HarbourMasters fork of Fast64.
+All tools read **your own ROM** and write into `build/` (never committed). They come in two parts: one Rust program, `n64kr`, reads the ROMs and converts formats, and four Blender 4.3 scripts render and export (Blender runs them headless with `-b`; the track export also needs the HarbourMasters fork of Fast64).
 
-| Tool | Input → output |
-|---|---|
-| `extract_dkr_hover_stats.py` | DKR ROM → `n64kr_dkr_hover.txt`: per-character weight, handling and hover curves used by the hover movement model. |
-| `dkr_level_to_gltf.py` | DKR ROM → a DKR track as glTF + textures (`--mk64`: rescaled, start line and AI path laid out for MK64). Also the shared DKR ROM reader (asset tables, DKR compression, textures, sprites). |
-| `blender_dkr_track.py` | Converted track → SpaghettiKart custom track mod via Fast64 (materials, transparency classes, surfaces). |
-| `dkr_track_scene.py` | Track mod → `scene.json`: item boxes, minimap, sky colours. |
-| `dkr_racer_to_gltf.py` | DKR ROM → a DKR racer (e.g. `diddycar`) as glTF with its driving animation as shape keys, plus wheel sprite frames. Decodes DKR's vertex animation format. |
-| `blender_dkr_racer_sprites.py` | Racer glTF → the 1188 MK64 kart sprite frames (321 angles × wheel spin), rendered in SpaghettiKart's kart setup scene; packaged as a texture pack over a stock character or as a new character's folder. |
-| `blender_dkr_racer_hud.py` | Racer glTF → race portrait (4x), minimap icons and blank nameplate. |
-| `blender_dkr_racer_faces.py` | Racer glTF → 23 animated select faces (idle, blink, picked, lost) as 256 px PNGs for MK64's 64x64 face slot. |
-| `dkr_voice_to_wav.py` | DKR ROM → a racer's voice clips as WAV (parses DKR's sound bank, decodes N64 VADPCM). |
-| `dkr_racer_to_model.py` | DKR ROM → an in-game 3D model: libultraship display lists for each driving pose, steering front wheels, `model.json`. |
-
-### Rust tools (`tools/n64kr-rs/`)
-New tools are written in Rust: one `n64kr` program, `cargo build --release` in that folder. GoldenEye formats come from the [GoldenEye decomp](https://github.com/n64decomp/007); the tool checks for the US ROM.
+### `n64kr` (Rust, `tools/n64kr-rs/`)
+Build once with `cargo build --release` in `tools/n64kr-rs` (the program is `tools/n64kr-rs/target/release/n64kr`; run it with no arguments for the command list). DKR formats come from the [DKR decomp](https://github.com/DavidSM64/Diddy-Kong-Racing), GoldenEye formats from the [GoldenEye decomp](https://github.com/n64decomp/007); each command checks for the supported ROM.
 
 | Command | Input → output |
 |---|---|
+| `dkr-level` | DKR ROM → a DKR track as glTF + textures (`--mk64`: rescaled, start line and AI path laid out for MK64; `--list` for the track names). |
+| `dkr-track-scene` | Exported track mod → `scene.json` (item boxes, extra actors, music, sky colours) and the minimap. |
+| `dkr-racer` | DKR ROM → a DKR racer (e.g. `diddycar`) as glTF with its driving, horn and crash animations as shape keys, plus wheel sprite frames and eye texture frames. Decodes DKR's vertex animation format. |
+| `dkr-racer-model` | DKR ROM → an in-game 3D model: libultraship display lists for each driving pose, steering front wheels, `model.json`. |
+| `dkr-voice` | DKR ROM → a racer's voice clips as WAV (parses DKR's sound bank, decodes N64 VADPCM). |
+| `dkr-hover-stats` | DKR ROM → `n64kr_dkr_hover.txt`: per-character weight, handling and hover curves used by the hover movement model. |
 | `ge-bg-info`, `ge-textures`, `ge-gltf`, `ge-rooms-gltf` | A GoldenEye level's rooms (with bounding boxes), textures, the whole level or chosen rooms as glTF. |
 | `ge-images` | GoldenEye images by number (sprites, effects) as PNG. |
 | `ge-model` | An object model (props, guards, heads, guns): node tree, glTF; guards posed by an animation frame. |
 | `ge-guard` | A posed Dam guard with head and KF7, as glTF (for checking poses). |
-| `ge-dam-speedway [a\|b]` | Dam Speedway (A) or the twin-Dam B: track glTF + layout (AI path, item boxes, hazards, music) for `blender_dkr_track.py` / `dkr_track_scene.py`. |
+| `ge-dam-speedway [a\|b]` | Dam Speedway (A) or the twin-Dam B: track glTF + layout (AI path, item boxes, hazards, music) for `blender_dkr_track.py` / `dkr-track-scene`. |
 | `ge-hazards` | Barrel, guard poses and effect sprites as in-game resources (mod `n64kr-ge-assets`). |
 | `ge-audio` | GoldenEye songs rendered to looping WAV (an offline port of libultra's sequence player) and sound effects. |
+
+The DKR commands were ported from N64KR's earlier Python tools and checked against them on the same ROM: every output matched (WAV, display list, vertex and texture files byte for byte, glTF and JSON by value, PNGs pixel for pixel, glTF buffers byte for byte).
+
+### Blender scripts (`tools/n64kr/`)
+| Script | Input → output |
+|---|---|
+| `blender_dkr_track.py` | Converted track → SpaghettiKart custom track mod via Fast64 (materials, transparency classes, surfaces). |
+| `blender_dkr_racer_sprites.py` | Racer glTF → the 1188 MK64 kart sprite frames (321 angles × wheel spin), rendered in SpaghettiKart's kart setup scene; packaged as a texture pack over a stock character or as a new character's folder. |
+| `blender_dkr_racer_hud.py` | Racer glTF → race portrait (4x), minimap icons and blank nameplate. |
+| `blender_dkr_racer_faces.py` | Racer glTF → 23 animated select faces (idle, blink, picked, lost) as 256 px PNGs for MK64's 64x64 face slot. |
 
 ### Making the Dam tracks
 ```bash
@@ -81,20 +84,21 @@ tools/n64kr-rs/target/release/n64kr ge-dam-speedway "<GoldenEye ROM>.z64" build/
 tools/n64kr-rs/target/release/n64kr ge-dam-speedway "<GoldenEye ROM>.z64" build/ge_tracks/dam_speedway_b b
 blender -b --factory-startup -P tools/n64kr/blender_dkr_track.py -- build/ge_tracks/dam_speedway build/x64/mods dam_speedway ge
 blender -b --factory-startup -P tools/n64kr/blender_dkr_track.py -- build/ge_tracks/dam_speedway_b build/x64/mods dam_speedway_b ge
-python -I tools/n64kr/dkr_track_scene.py build/ge_tracks/dam_speedway build/x64/mods dam_speedway "Dam Speedway" ge
-python -I tools/n64kr/dkr_track_scene.py build/ge_tracks/dam_speedway_b build/x64/mods dam_speedway_b "Dam Speedway B" ge
+tools/n64kr-rs/target/release/n64kr dkr-track-scene build/ge_tracks/dam_speedway build/x64/mods dam_speedway "Dam Speedway" ge
+tools/n64kr-rs/target/release/n64kr dkr-track-scene build/ge_tracks/dam_speedway_b build/x64/mods dam_speedway_b "Dam Speedway B" ge
 tools/n64kr-rs/target/release/n64kr ge-hazards "<GoldenEye ROM>.z64" build/x64/mods/n64kr-ge-assets
 tools/n64kr-rs/target/release/n64kr ge-audio "<GoldenEye ROM>.z64" build/x64/mods/n64kr-ge-assets
 ```
 
 ### Making a DKR racer (Diddy; Banjo and Conker the same way with `BanjoCar`/`ConkaCar`)
 ```bash
-python -I tools/n64kr/dkr_racer_to_gltf.py "<DKR ROM>.z64" diddycar build/dkr_racers
+cd tools/n64kr-rs && cargo build --release && cd ../..
+tools/n64kr-rs/target/release/n64kr dkr-racer "<DKR ROM>.z64" diddycar build/dkr_racers
 blender -b docs/MK64_Spaghetti_Adjusted_Kart_Setup.blend --python tools/n64kr/blender_dkr_racer_sprites.py -- build/dkr_racers/diddycar build/x64/mods/n64kr-dkr-diddy diddy_kart
 blender -b --python tools/n64kr/blender_dkr_racer_hud.py -- build/dkr_racers/diddycar build/x64/mods/n64kr-dkr-diddy diddy build/x64/mk64.o2r toad 248,120,0
 blender -b --python tools/n64kr/blender_dkr_racer_faces.py -- build/dkr_racers/diddycar build/x64/mods/n64kr-dkr-diddy diddy
-python -I tools/n64kr/dkr_voice_to_wav.py "<DKR ROM>.z64" diddy build/x64/mods/n64kr-dkr-diddy
-python -I tools/n64kr/dkr_racer_to_model.py "<DKR ROM>.z64" diddycar diddy build/x64/mods/n64kr-dkr-diddy
+tools/n64kr-rs/target/release/n64kr dkr-voice "<DKR ROM>.z64" diddy build/x64/mods/n64kr-dkr-diddy
+tools/n64kr-rs/target/release/n64kr dkr-racer-model "<DKR ROM>.z64" diddycar diddy build/x64/mods/n64kr-dkr-diddy
 ```
 The full render takes a few minutes; `--preview` renders 12 sample frames. Banjo's model is exported one size up: add `1.2` after his mod folder in the last command.
 
@@ -127,13 +131,13 @@ Upstream files only get thin one-line hooks, each marked `// N64KR HOOK` (`grep 
 ## Building and playing
 Step by step with every command: [docs/n64kr/TUTORIAL_SETUP.md](docs/n64kr/TUTORIAL_SETUP.md). In short:
 1. Build SpaghettiKart as usual (`docs/BUILDING.md`) and generate `mk64.o2r` from your US Mario Kart 64 ROM.
-2. Run the tools above with your DKR ROM (US Rev 1 tested) to generate the mods into `build/x64/mods/`.
-3. For GoldenEye content, build the Rust tool and run the Dam commands above with your GoldenEye ROM (US).
-4. Launch. Diddy, Banjo and Conker are on the DKR page (push right past the character grid, or follow the arrow). The Rare Cup (Ancient Lake, Fossil Canyon, Dam Speedway, Dam Speedway B) is past Special Cup in Grand Prix and VS; Fossil Canyon converts like Ancient Lake (`dkr_level_to_gltf.py … fossil_canyon build/dkr_tracks --mk64`, then the Blender and scene steps).
+2. Build the `n64kr` tool (`cargo build --release` in `tools/n64kr-rs`) and run the commands above with your DKR ROM (US Rev 1) to generate the mods into `build/x64/mods/`.
+3. For GoldenEye content, run the Dam commands above with your GoldenEye ROM (US).
+4. Launch. Diddy, Banjo and Conker are on the DKR page (push right past the character grid, or follow the arrow). The Rare Cup (Ancient Lake, Fossil Canyon, Dam Speedway, Dam Speedway B) is past Special Cup in Grand Prix and VS; Fossil Canyon converts like Ancient Lake (`n64kr dkr-level … fossil_canyon build/dkr_tracks --mk64`, then the Blender and scene steps).
 
 ## Project records (`recon/`)
 Each step ("slice") has a record with what was found in the source, what was changed, and what was verified in game:
-`000-baseline` · `001-vehicle-profile` · `002-movement-switch` · `003-movement` (movement source map) · `004-hover` · `005-content-merge` (first DKR track) · `006-selection` (vehicle select, character registry, Diddy, Banjo and Conker) · `007-3d-racers` · `008-goldeneye-dam` (Dam Speedway A/B, hazards, GoldenEye audio) · `009-circuit-select` (Rare Cup).
+`000-baseline` · `001-vehicle-profile` · `002-movement-switch` · `003-movement` (movement source map) · `004-hover` · `005-content-merge` (first DKR track) · `006-selection` (vehicle select, character registry, Diddy, Banjo and Conker) · `007-3d-racers` · `008-goldeneye-dam` (Dam Speedway A/B, hazards, GoldenEye audio) · `009-circuit-select` (Rare Cup) · `010-rust-tools` (DKR tools ported to Rust, with the parity check).
 
 ## Roadmap
 - 3D racers: finish effects, then Mario (rigged model in SpaghettiKart's kart setup file) and the rest of the MK64 cast from other N64 games the user owns (Mario Party, Mario Tennis, Smash Bros.).

@@ -1,8 +1,10 @@
 //! n64kr: N64KR's asset tools. Each subcommand reads your own ROM and writes
 //! generated content under build/ (never committed).
 
+mod dkr;
 mod ge;
 mod gltf;
+mod json;
 mod lus;
 mod n64audio;
 mod png;
@@ -34,6 +36,21 @@ Commands:
                                              Dam Speedway: banked oval over Dam's reservoir (b: twin Dams,
                                              longer oval), the outdoor level as scenery, for blender_dkr_track.py
   levels: dam, facility, runway, surface, bunker, silo, frigate, statue, archives, streets, ...
+
+Diddy Kong Racing (US v1.1 ROM):
+  dkr-level <DKR ROM> --list | <track> <out root> [--mk64]
+                                             A track as glTF (+ textures) in <out root>/<track>[_mk64]/;
+                                             --mk64: laid out for SpaghettiKart, with <track>_mk64.json
+                                             (AI path, start grid, item boxes) for blender_dkr_track.py
+  dkr-track-scene <converted dir> <mods dir> <track> <name> [prefix]
+                                             scene.json and minimap of the exported track mod
+  dkr-racer <DKR ROM> --list | <object> <out root>
+                                             A racer (e.g. diddycar) as glTF with its animations as shape keys,
+                                             wheel sprite frames, eye texture frames, <object>_racer.json
+  dkr-racer-model <DKR ROM> <object> <name> <mod dir> [size]
+                                             The racer as an in-game 3D model (racers/<name>/ in the mod)
+  dkr-voice <DKR ROM> <racer> <mod dir>      The racer's voice clips as WAV (sound/n64kr/<racer>/)
+  dkr-hover-stats <DKR ROM> <out.txt>        DKR hovercraft stats for the hover movement model
 ";
 
 fn load_ge(rom_path: &str) -> Result<rom::Rom, String> {
@@ -891,6 +908,25 @@ fn main() -> ExitCode {
         ["ge-guard", rom, dir, anim, frame, head] => ge_guard(rom, dir, anim, frame, head),
         ["ge-dam-speedway", rom, dir] => ge_dam_speedway(rom, dir, "a"),
         ["ge-dam-speedway", rom, dir, variant] => ge_dam_speedway(rom, dir, variant),
+        ["dkr-level", _rom, "--list"] => {
+            println!("{}", dkr::level::LEVEL_NAMES.join("\n"));
+            Ok(())
+        }
+        ["dkr-level", rom, track, out] => dkr::Rom::load(rom).and_then(|r| dkr::level::convert(&r, track, out, false)),
+        ["dkr-level", rom, track, out, "--mk64"] => dkr::Rom::load(rom).and_then(|r| dkr::level::convert(&r, track, out, true)),
+        ["dkr-track-scene", src, mods, track, name] => dkr::scene::write(src, mods, track, name, "dkr"),
+        ["dkr-track-scene", src, mods, track, name, prefix] => dkr::scene::write(src, mods, track, name, prefix),
+        ["dkr-racer", rom, "--list"] => dkr::Rom::load(rom).map(|r| dkr::racer::list(&r)),
+        ["dkr-racer", rom, object, out] => dkr::Rom::load(rom).and_then(|r| dkr::racer::export(&r, object, out)),
+        ["dkr-racer-model", rom, object, name, mod_dir] => {
+            dkr::Rom::load(rom).and_then(|r| dkr::model::export(&r, object, name, mod_dir, 1.0))
+        }
+        ["dkr-racer-model", rom, object, name, mod_dir, size] => match size.parse::<f64>() {
+            Ok(s) => dkr::Rom::load(rom).and_then(|r| dkr::model::export(&r, object, name, mod_dir, s)),
+            Err(_) => Err(format!("size '{size}' is not a number")),
+        },
+        ["dkr-voice", rom, racer, mod_dir] => dkr::Rom::load(rom).and_then(|r| dkr::voice::extract(&r, racer, mod_dir)),
+        ["dkr-hover-stats", rom, out] => dkr::Rom::load(rom).and_then(|r| dkr::hover::extract(&r, out)),
         _ => {
             eprint!("{USAGE}");
             return ExitCode::from(2);

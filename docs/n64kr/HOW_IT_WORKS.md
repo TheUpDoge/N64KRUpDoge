@@ -62,7 +62,7 @@ SpaghettiKart keeps moving, and N64KR wants its updates. So all N64KR code lives
 - DKR scales *some* terms by `updateRate` (throttle ramps, gravity, position) but applies others once per logic frame: lateral grip `0.07`, thrust, brake, slope push, quadratic drag `0.004·v²` [VERIFIED: decomp line refs in `recon/004-hover`].
 - DKR was tuned at 30 Hz logic, so at 60 Hz those unscaled terms would act twice as hard. The port halves each one per tick [CONCLUSION, then tuned in playtests].
 
-Hovercraft float on water and lava (buoyancy ported from the same function) and use **DKR's real stats**, read from your DKR ROM by `tools/n64kr/extract_dkr_hover_stats.py` (weights, handling, speed curves). **R** on the character select screen switches each player between Kart and Hover.
+Hovercraft float on water and lava (buoyancy ported from the same function) and use **DKR's real stats**, read from your DKR ROM by `n64kr dkr-hover-stats` (weights, handling, speed curves). **R** on the character select screen switches each player between Kart and Hover.
 
 ## 4. Characters from other games
 
@@ -79,7 +79,9 @@ MK64's 8 map to themselves. Id 8 stays MK64's "no character" marker, and new cha
 
 ## 5. DKR tracks
 
-Pipeline: `dkr_level_to_gltf.py --mk64`, then `blender_dkr_track.py` (Blender 4.3 + HarbourMasters' Fast64), then `dkr_track_scene.py`. The result is a standard SpaghettiKart custom track mod.
+All ROM reading and converting is one Rust program, `n64kr` (`tools/n64kr-rs`), with a command per job; only the rendering and Fast64 export are Blender scripts. (The DKR commands began as Python tools and were ported, with every output checked identical on the same ROM.)
+
+Pipeline: `n64kr dkr-level --mk64`, then `blender_dkr_track.py` (Blender 4.3 + HarbourMasters' Fast64), then `n64kr dkr-track-scene`. The result is a standard SpaghettiKart custom track mod.
 
 - **Reading DKR.** One asset lookup table points at sections (level models, textures, objects, audio, ...). Most assets use DKR's compression: a 5-byte header, then raw deflate (`src/gzip.c`). Level models contain segments, triangle batches and vertices exactly as in the decomp's `include/structs.h` [VERIFIED].
 - **To glTF.** Textures are decoded from DKR's formats (RGBA16/32, I4/8, IA4/8/16, interlaced rows), and triangle batches become materials tagged with MK64 surface, collision and draw layer.
@@ -95,18 +97,18 @@ One DKR racer object (`diddycar`, `BanjoCar`, `ConkaCar`, ...) becomes a full N6
 
 | Output | How |
 |---|---|
-| **Racer glTF** (`dkr_racer_to_gltf.py`) | Body model 0 (most detailed), wheels from the object's vehicle parts, and DKR's **vertex animation** decoded: keyframe 0 holds an s16 offset per animated vertex, later keyframes hold s8 deltas, 16 frames per keyframe [VERIFIED: `obj_animate.s`]. Animation 0 (steering) is exported as shape keys, plus the horn taunt (4) and the crash (3). |
+| **Racer glTF** (`n64kr dkr-racer`) | Body model 0 (most detailed), wheels from the object's vehicle parts, and DKR's **vertex animation** decoded: keyframe 0 holds an s16 offset per animated vertex, later keyframes hold s8 deltas, 16 frames per keyframe [VERIFIED: `obj_animate.s`]. Animation 0 (steering) is exported as shape keys, plus the horn taunt (4) and the crash (3). |
 | **Kart sprites** (`blender_dkr_racer_sprites.py`) | All **1188** MK64 sprite frames (321 angles × wheel spin), rendered in SpaghettiKart's kart setup scene so they line up with MK64's camera. |
-| **3D model** (`dkr_racer_to_model.py`) | libultraship display lists, one per steering pose, plus separate wheels. The engine (`racer3d.c`) draws them instead of sprites, picks the pose from the visual turn, rolls the wheels, steers the front ones, and keeps MK64's star / Boo / Lakitu effects. |
+| **3D model** (`n64kr dkr-racer-model`) | libultraship display lists, one per steering pose, plus separate wheels. The engine (`racer3d.c`) draws them instead of sprites, picks the pose from the visual turn, rolls the wheels, steers the front ones, and keeps MK64's star / Boo / Lakitu effects. |
 | **Faces** (`blender_dkr_racer_faces.py`) | 23 select faces at **4× MK64's detail** (256 px PNGs in the 64×64 slot): idle, blinks from DKR's own animated eye textures, a "picked" animation (DKR's horn taunt, turning to face you), and a "lost" one (DKR's crash) for the cup award screen. |
 | **HUD** (`blender_dkr_racer_hud.py`) | Race portrait at 4×, minimap icons, a blank nameplate (the name is printed over it). |
-| **Voice** (`dkr_voice_to_wav.py`) | DKR's sound bank parsed (libultra `ALBankFile`), N64 **VADPCM** decoded, pitch from the key map. Each racer gets eight "positive" and eight "negative" lines plus one-offs ("I'm Banjo!"). |
+| **Voice** (`n64kr dkr-voice`) | DKR's sound bank parsed (libultra `ALBankFile`), N64 **VADPCM** decoded, pitch from the key map. Each racer gets eight "positive" and eight "negative" lines plus one-offs ("I'm Banjo!"). |
 
 Two engine facts made the HD faces possible [VERIFIED: libultraship source, screenshots]: SpaghettiKart loads a PNG next to a texture resource at whatever size it is, and libultraship takes texture coordinates from the **tile** MK64 loads, not from the image. So a 256 px face fills the 64×64 face slot with four times the detail, with no change to MK64's menu code.
 
 ## 7. GoldenEye: a track, hazards and music
 
-GoldenEye tools are in Rust (`tools/n64kr-rs`), using the [GoldenEye decomp](https://github.com/n64decomp/007) as the format reference.
+GoldenEye commands are in the same Rust tool (`tools/n64kr-rs`), using the [GoldenEye decomp](https://github.com/n64decomp/007) as the format reference.
 
 - **Levels.** Each level's background is a set of rooms with their own vertices and display lists (`ge-bg-info`, `ge-rooms-gltf`).
 - **Models and animation.** Model files are "1172"-compressed, and their part counts live in the game's model header table, not the file. Guards are animated by bit-packed joint angles per frame (`ModelAnimation` table). Each joint matrix = parent × rotation_xyz [VERIFIED: posed renders match the game].

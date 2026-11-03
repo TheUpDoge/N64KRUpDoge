@@ -89,7 +89,7 @@ Clip* load_clip(s32 characterId, const char* voiceName, Voice& voice, const std:
     const std::string path = std::string("sound/n64kr/") + voiceName + "/" + name + ".wav";
     auto file = Ship::Context::GetRawInstance()->GetResourceManager()->LoadFileProcess(path);
     if ((file == nullptr) || (file->Buffer == nullptr) || file->Buffer->empty()) {
-        // Expected for repeats the extractor leaves out (dkr_voice_to_wav.py crossed_clips).
+        // Expected for repeats the extractor leaves out (`n64kr dkr-voice`, tools/n64kr-rs/src/dkr/voice.rs crossed_clips).
         SPDLOG_DEBUG("[n64kr] voice clip {} not in the mod", path);
         return nullptr;
     }

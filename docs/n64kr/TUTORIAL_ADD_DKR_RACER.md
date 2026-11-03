@@ -16,7 +16,7 @@ Diddy, Banjo and Conker are in. This tutorial adds a fourth DKR racer, **Krunch*
 | Pipsy | `MouseCar` | `pipsy` | `0x008E` |
 | T.T. | `SWcar` | `tt` | `0x008F` |
 
-`python -I tools/n64kr/dkr_racer_to_gltf.py "$DKR" --list` prints every racer object in your ROM (cars, hovercraft, planes). The voice ids come from the DKR decomp's `include/sound_ids.h`.
+`$N64KR dkr-racer "$DKR" --list` (with `N64KR` and `DKR` set as in the setup tutorial) prints every racer object in your ROM (cars, hovercraft, planes). The voice ids come from the DKR decomp's `include/sound_ids.h`.
 
 Pick three short names for the racer, used everywhere below:
 
@@ -28,12 +28,15 @@ Pick three short names for the racer, used everywhere below:
 
 ## 2. Add the one-off voice lines (optional)
 
-Every racer gets DKR's eight positive and eight negative lines automatically. The one-off lines ("My name's Krunch", a laugh, a surprised "woah") need an entry in `SPECIAL` in `tools/n64kr/dkr_voice_to_wav.py`, with ids from the decomp's `include/sound_ids.h`:
+Every racer gets DKR's eight positive and eight negative lines automatically. The one-off lines ("My name's Krunch", a laugh, a surprised "woah") need an entry in `special()` in `tools/n64kr-rs/src/dkr/voice.rs`, with ids from the decomp's `include/sound_ids.h`, then a rebuild (`cargo build --release` in `tools/n64kr-rs`):
 
-```python
-SPECIAL = {
-    ...
-    "krunch": {"laugh": 0x0073, "laugh2": 0x0047, "woah": 0x0093, "select": 0x0087},  # LAUGH, HOHOO, EHH, "My name's Krunch"
+```rust
+fn special(racer: &str) -> &'static [(&'static str, usize)] {
+    match racer {
+        ...
+        "krunch" => &[("laugh", 0x0073), ("laugh2", 0x0047), ("woah", 0x0093), ("select", 0x0087)], // LAUGH, HOHOO, EHH, "My name's Krunch"
+        _ => &[],
+    }
 }
 ```
 
@@ -42,12 +45,12 @@ SPECIAL = {
 ## 3. Generate the assets
 
 ```bash
-python -I tools/n64kr/dkr_racer_to_gltf.py "$DKR" KremCar build/dkr_racers
+$N64KR dkr-racer "$DKR" KremCar build/dkr_racers
 "$BLENDER" -b docs/MK64_Spaghetti_Adjusted_Kart_Setup.blend --python tools/n64kr/blender_dkr_racer_sprites.py -- build/dkr_racers/KremCar build/x64/mods/n64kr-dkr-krunch krunch_kart
 "$BLENDER" -b --python tools/n64kr/blender_dkr_racer_hud.py -- build/dkr_racers/KremCar build/x64/mods/n64kr-dkr-krunch krunch build/x64/mk64.o2r toad 60,170,60
 "$BLENDER" -b --python tools/n64kr/blender_dkr_racer_faces.py -- build/dkr_racers/KremCar build/x64/mods/n64kr-dkr-krunch krunch
-python -I tools/n64kr/dkr_voice_to_wav.py "$DKR" krunch build/x64/mods/n64kr-dkr-krunch
-python -I tools/n64kr/dkr_racer_to_model.py "$DKR" KremCar krunch build/x64/mods/n64kr-dkr-krunch 1.2
+$N64KR dkr-voice "$DKR" krunch build/x64/mods/n64kr-dkr-krunch
+$N64KR dkr-racer-model "$DKR" KremCar krunch build/x64/mods/n64kr-dkr-krunch 1.2
 ```
 
 - `60,170,60` is the kart colour on the minimap (any R,G,B).

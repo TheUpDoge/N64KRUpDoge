@@ -1,4 +1,4 @@
-//! Minimal RGBA8 PNG writer (zlib via flate2, CRC-32 here).
+//! Minimal RGBA8 / greyscale PNG writer (zlib via flate2, CRC-32 here).
 
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
@@ -25,10 +25,20 @@ fn chunk(out: &mut Vec<u8>, tag: &[u8; 4], payload: &[u8]) {
 }
 
 pub fn encode_rgba(width: usize, height: usize, rgba: &[u8]) -> Vec<u8> {
-    let mut raw = Vec::with_capacity((width * 4 + 1) * height);
+    encode(width, height, rgba, 4, 6)
+}
+
+/// 8-bit greyscale (the minimap: SpaghettiKart reads it as one channel).
+pub fn encode_grey(width: usize, height: usize, pixels: &[u8]) -> Vec<u8> {
+    encode(width, height, pixels, 1, 0)
+}
+
+fn encode(width: usize, height: usize, pixels: &[u8], channels: usize, colour_type: u8) -> Vec<u8> {
+    let rgba = pixels;
+    let mut raw = Vec::with_capacity((width * channels + 1) * height);
     for y in 0..height {
         raw.push(0);
-        raw.extend_from_slice(&rgba[y * width * 4..(y + 1) * width * 4]);
+        raw.extend_from_slice(&rgba[y * width * channels..(y + 1) * width * channels]);
     }
     let mut z = ZlibEncoder::new(Vec::new(), Compression::best());
     z.write_all(&raw).expect("in-memory write");
@@ -36,7 +46,7 @@ pub fn encode_rgba(width: usize, height: usize, rgba: &[u8]) -> Vec<u8> {
     let mut ihdr = Vec::with_capacity(13);
     ihdr.extend_from_slice(&(width as u32).to_be_bytes());
     ihdr.extend_from_slice(&(height as u32).to_be_bytes());
-    ihdr.extend_from_slice(&[8, 6, 0, 0, 0]);
+    ihdr.extend_from_slice(&[8, colour_type, 0, 0, 0]);
     let mut out = b"\x89PNG\r\n\x1a\n".to_vec();
     chunk(&mut out, b"IHDR", &ihdr);
     chunk(&mut out, b"IDAT", &idat);

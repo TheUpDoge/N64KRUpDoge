@@ -4,7 +4,7 @@
 // N64KR: racers drawn as real-time 3D models instead of MK64's pre-rendered
 // kart sprites, for characters with a registry model3d (src/n64kr/character.c).
 //
-// The model comes from a mod (tools/n64kr/dkr_racer_to_model.py): one display
+// The model comes from a mod (`n64kr dkr-racer-model`, tools/n64kr-rs): one display
 // list per driving pose (the body), one per wheel built around its centre, and
 // model.json (pose count, scale, wheel centres, which wheels steer). Model
 // space faces +Z, Y up, tyres on y = 0, in source-model units. It is drawn at

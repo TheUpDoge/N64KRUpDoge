@@ -17,7 +17,7 @@
 #define HOVER_PER_FRAME 0.5f
 
 // Real DKR stats come from n64kr_dkr_hover.txt, written next to the game by
-// tools/n64kr/extract_dkr_hover_stats.py from the user's own DKR ROM. The
+// `n64kr dkr-hover-stats` (tools/n64kr-rs) from the user's own DKR ROM. The
 // file holds ROM data and is never committed. Without it, the placeholders
 // below are used.
 #define DKR_STATS_FILE "n64kr_dkr_hover.txt"

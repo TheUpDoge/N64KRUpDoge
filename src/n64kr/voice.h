@@ -7,7 +7,7 @@
 // A character with a registry voiceName gets its own id as voice index
 // (n64kr_char_voice_line), so its lines arrive in play_sound with sound ids
 // 0x90 and up, which MK64 never uses. Those are played here instead: WAV clips
-// from a mod (sound/n64kr/<voiceName>/, tools/n64kr/dkr_voice_to_wav.py),
+// from a mod (sound/n64kr/<voiceName>/, `n64kr dkr-voice`),
 // mixed by the port's HMAS mixer, quieter with distance from the listener.
 
 #include <common_structs.h>

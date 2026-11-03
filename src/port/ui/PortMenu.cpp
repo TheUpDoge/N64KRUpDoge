@@ -421,7 +421,7 @@ void PortMenu::AddEnhancements() {
                      .ComboMap(n64krHoverCharacterOptions)
                      .DefaultIndex(9)
                      .Tooltip("Which DKR character's hovercraft stats the Hovercraft profile uses. Needs "
-                              "n64kr_dkr_hover.txt from tools/n64kr/extract_dkr_hover_stats.py; without it, "
+                              "n64kr_dkr_hover.txt from n64kr dkr-hover-stats; without it, "
                               "placeholder stats are used."));
 }
 

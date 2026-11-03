@@ -9,18 +9,18 @@ Tested on Windows 10/11. Linux should work for the engine (see SpaghettiKart's `
 | Need | For | Notes |
 |---|---|---|
 | Visual Studio 2022 (or Build Tools) with "Desktop development with C++" and MSVC v143 | the engine | as in SpaghettiKart's [`docs/BUILDING.md`](../BUILDING.md) |
-| CMake, Git, Python 3 | engine and tools | the Python tools only use the standard library |
+| CMake, Git, Python 3 | the engine build | as in SpaghettiKart's docs |
 | [Blender 4.3](https://download.blender.org/release/Blender4.3/) (portable zip is fine) | racer sprites, faces, HUD; track export | |
 | [HarbourMasters' Fast64](https://github.com/HarbourMasters/fast64) installed in Blender | track export only | install the add-on and enable it |
-| [Rust](https://rustup.rs) | GoldenEye tools only | `cargo` on your PATH |
+| [Rust](https://rustup.rs) | the `n64kr` content tool (DKR and GoldenEye) | `cargo` on your PATH |
 
 ROMs (all `.z64`, big-endian):
 
 | Game | Version | Check |
 |---|---|---|
 | Mario Kart 64 | US | SHA-1 `579C48E211AE952530FFC8738709F078D5DD215E` |
-| Diddy Kong Racing | US Rev 1 (v1.1) | the DKR tools check the SHA-1 and say if it's unsupported |
-| GoldenEye 007 | US | the Rust tool checks the SHA-1 |
+| Diddy Kong Racing | US Rev 1 (v1.1) | `n64kr` checks the SHA-1 and says if it's unsupported |
+| GoldenEye 007 | US | `n64kr` checks the SHA-1 |
 
 In PowerShell: `Get-FileHash .\yourrom.z64 -Algorithm SHA1`. A different hash usually means the wrong byte order (`.n64`/`.v64`) or region.
 
@@ -41,11 +41,22 @@ cd build/x64 && ./Release/Spaghettify.exe
 
 Pick your **Mario Kart 64** ROM when asked. That generates `mk64.o2r`, and the game should start as plain SpaghettiKart. Close it and go back to the repository folder for the next steps.
 
-## 3. Generate the DKR racers
+## 3. Build the content tool
+
+All the ROM reading and converting is one Rust program, `n64kr`:
+
+```bash
+cd tools/n64kr-rs && cargo build --release && cd ../..
+```
+
+Run `tools/n64kr-rs/target/release/n64kr` with no arguments to see every command.
+
+## 4. Generate the DKR racers
 
 The commands below use these placeholders; set them for your machine:
 
 ```bash
+N64KR=tools/n64kr-rs/target/release/n64kr
 DKR="path/to/Diddy Kong Racing (USA) (Rev 1).z64"
 BLENDER="path/to/blender-4.3/blender.exe"
 ```
@@ -53,12 +64,12 @@ BLENDER="path/to/blender-4.3/blender.exe"
 For each racer, run the six steps. Diddy:
 
 ```bash
-python -I tools/n64kr/dkr_racer_to_gltf.py "$DKR" diddycar build/dkr_racers
+$N64KR dkr-racer "$DKR" diddycar build/dkr_racers
 "$BLENDER" -b docs/MK64_Spaghetti_Adjusted_Kart_Setup.blend --python tools/n64kr/blender_dkr_racer_sprites.py -- build/dkr_racers/diddycar build/x64/mods/n64kr-dkr-diddy diddy_kart
 "$BLENDER" -b --python tools/n64kr/blender_dkr_racer_hud.py -- build/dkr_racers/diddycar build/x64/mods/n64kr-dkr-diddy diddy build/x64/mk64.o2r toad 248,120,0
 "$BLENDER" -b --python tools/n64kr/blender_dkr_racer_faces.py -- build/dkr_racers/diddycar build/x64/mods/n64kr-dkr-diddy diddy
-python -I tools/n64kr/dkr_voice_to_wav.py "$DKR" diddy build/x64/mods/n64kr-dkr-diddy
-python -I tools/n64kr/dkr_racer_to_model.py "$DKR" diddycar diddy build/x64/mods/n64kr-dkr-diddy
+$N64KR dkr-voice "$DKR" diddy build/x64/mods/n64kr-dkr-diddy
+$N64KR dkr-racer-model "$DKR" diddycar diddy build/x64/mods/n64kr-dkr-diddy
 ```
 
 Banjo and Conker are the same with these values:
@@ -69,45 +80,43 @@ Banjo and Conker are the same with these values:
 | Banjo | `BanjoCar` | `banjo` | `banjo_kart` | `70,130,230` | 1.2 (add `1.2` at the end of the last command) |
 | Conker | `ConkaCar` | `conker` | `conker_kart` | `220,50,40` | 1.0 |
 
-The sprite render is the slow step (a few minutes per racer; add `--preview` for 12 test frames). The rest take seconds.
+The sprite render is the slow step (a few minutes per racer; add `--preview` for 12 test frames). The `n64kr` steps take a second or two.
 
-## 4. Generate the DKR tracks
+## 5. Generate the DKR tracks
 
 ```bash
-python -I tools/n64kr/dkr_level_to_gltf.py "$DKR" ancient_lake build/dkr_tracks --mk64
+$N64KR dkr-level "$DKR" ancient_lake build/dkr_tracks --mk64
 "$BLENDER" -b --python tools/n64kr/blender_dkr_track.py -- build/dkr_tracks/ancient_lake_mk64 build/x64/mods ancient_lake
-python -I tools/n64kr/dkr_track_scene.py build/dkr_tracks/ancient_lake_mk64 build/x64/mods ancient_lake "Ancient Lake"
+$N64KR dkr-track-scene build/dkr_tracks/ancient_lake_mk64 build/x64/mods ancient_lake "Ancient Lake"
 
-python -I tools/n64kr/dkr_level_to_gltf.py "$DKR" fossil_canyon build/dkr_tracks --mk64
+$N64KR dkr-level "$DKR" fossil_canyon build/dkr_tracks --mk64
 "$BLENDER" -b --python tools/n64kr/blender_dkr_track.py -- build/dkr_tracks/fossil_canyon_mk64 build/x64/mods fossil_canyon
-python -I tools/n64kr/dkr_track_scene.py build/dkr_tracks/fossil_canyon_mk64 build/x64/mods fossil_canyon "Fossil Canyon"
+$N64KR dkr-track-scene build/dkr_tracks/fossil_canyon_mk64 build/x64/mods fossil_canyon "Fossil Canyon"
 ```
 
 DKR's hovercraft stats (used by the Hover vehicle):
 
 ```bash
-python -I tools/n64kr/extract_dkr_hover_stats.py "$DKR" build/x64/n64kr_dkr_hover.txt
+$N64KR dkr-hover-stats "$DKR" build/x64/n64kr_dkr_hover.txt
 ```
 
-## 5. Generate the GoldenEye content
+## 6. Generate the GoldenEye content
 
 ```bash
 GE="path/to/007 - GoldenEye (USA).z64"
-cd tools/n64kr-rs && cargo build --release && cd ../..
-N64KR=tools/n64kr-rs/target/release/n64kr
 $N64KR ge-dam-speedway "$GE" build/ge_tracks/dam_speedway a
 $N64KR ge-dam-speedway "$GE" build/ge_tracks/dam_speedway_b b
 "$BLENDER" -b --factory-startup -P tools/n64kr/blender_dkr_track.py -- build/ge_tracks/dam_speedway build/x64/mods dam_speedway ge
 "$BLENDER" -b --factory-startup -P tools/n64kr/blender_dkr_track.py -- build/ge_tracks/dam_speedway_b build/x64/mods dam_speedway_b ge
-python -I tools/n64kr/dkr_track_scene.py build/ge_tracks/dam_speedway build/x64/mods dam_speedway "Dam Speedway" ge
-python -I tools/n64kr/dkr_track_scene.py build/ge_tracks/dam_speedway_b build/x64/mods dam_speedway_b "Dam Speedway B" ge
+$N64KR dkr-track-scene build/ge_tracks/dam_speedway build/x64/mods dam_speedway "Dam Speedway" ge
+$N64KR dkr-track-scene build/ge_tracks/dam_speedway_b build/x64/mods dam_speedway_b "Dam Speedway B" ge
 $N64KR ge-hazards "$GE" build/x64/mods/n64kr-ge-assets
 $N64KR ge-audio "$GE" build/x64/mods/n64kr-ge-assets
 ```
 
 The track export loads Fast64 from your Blender add-ons; if `--factory-startup` keeps it from loading on your setup, drop that flag.
 
-## 6. Play
+## 7. Play
 
 Start the game from `build/x64` again; mods are picked up from `build/x64/mods/` at start.
 

@@ -1,4 +1,4 @@
-"""Blender 4.3 script: render a DKR racer (from dkr_racer_to_gltf.py) into MK64
+"""Blender 4.3 script: render a DKR racer (from `n64kr dkr-racer`, tools/n64kr-rs) into MK64
 kart sprite frames, using SpaghettiKart's kart setup scene
 (docs/MK64_Spaghetti_Adjusted_Kart_Setup.blend: fixed camera, 64x64, frames
 0-320 animated by the "Root" / "Kart Root" empties).

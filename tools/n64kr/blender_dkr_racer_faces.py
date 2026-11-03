@@ -1,5 +1,5 @@
 """Blender 4.3 script: animated select-screen faces for a new N64KR character
-from a DKR racer export (dkr_racer_to_gltf.py), for the DKR select page and the
+from a DKR racer export (`n64kr dkr-racer`, tools/n64kr-rs), for the DKR select page and the
 cup award screen (src/n64kr/character_select.c).
 
 Run headless:

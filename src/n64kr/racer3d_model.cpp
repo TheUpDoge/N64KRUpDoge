@@ -1,4 +1,4 @@
-// N64KR: 3D racer model info (model.json written by tools/n64kr/dkr_racer_to_model.py),
+// N64KR: 3D racer model info (model.json written by `n64kr dkr-racer-model`, tools/n64kr-rs),
 // read once per character from the mod.
 
 #include <string>

@@ -1,7 +1,7 @@
 //! Building race tracks: a banked stadium oval (two straights joined by two
 //! semicircular turns), its road, edge walls and an out-of-bounds sheet, and
 //! the layout JSON the SpaghettiKart track pipeline reads
-//! (tools/n64kr/blender_dkr_track.py, tools/n64kr/dkr_track_scene.py).
+//! (tools/n64kr/blender_dkr_track.py, `n64kr dkr-track-scene`).
 //!
 //! Everything here is in the source level's units with Y up; `Placement`
 //! converts to MK64 units (start line at the origin, racing towards -Z).
@@ -203,7 +203,7 @@ pub fn path(oval: &Oval, place: &Placement, step: f32) -> Vec<[f32; 3]> {
     (0..n).map(|i| place.apply(oval.sample(i as f32 * lap / n as f32).across(oval.width / 2.0))).collect()
 }
 
-/// `<track>_mk64.json` as blender_dkr_track.py / dkr_track_scene.py read it;
+/// `<track>_mk64.json` as blender_dkr_track.py / `n64kr dkr-track-scene` read it;
 /// `extra` = more JSON members (e.g. `"actors":[...],"sequence":20032`).
 pub fn layout_json(
     track: &str,

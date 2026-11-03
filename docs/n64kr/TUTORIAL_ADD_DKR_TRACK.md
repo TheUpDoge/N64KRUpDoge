@@ -7,7 +7,7 @@ Ancient Lake and Fossil Canyon are converted and tested. This tutorial converts 
 ## 1. Pick a track
 
 ```bash
-python -I tools/n64kr/dkr_level_to_gltf.py "$DKR" --list
+$N64KR dkr-level "$DKR" --list
 ```
 
 The race tracks: `ancient_lake`, `fossil_canyon`, `jungle_falls`, `hot_top_volcano` (Dino Domain); `whale_bay`, `crescent_island`, `pirate_lagoon`, `treasure_caves` (Sherbet Island); `windmill_plains`, `greenwood_village`, `boulder_canyon`, `haunted_woods` (Dragon Forest); `snowball_valley`, `everfrost_peak`, `walrus_cove`, `frosty_village` (Snowflake Mountain); `spaceport_alpha`, `spacedust_alley`, `darkmoon_caverns`, `star_city` (Future Fun Land). Hubs, boss races, menus and cutscenes are in the list too but aren't race tracks.
@@ -17,19 +17,19 @@ This tutorial uses **Whale Bay**.
 ## 2. Convert
 
 ```bash
-python -I tools/n64kr/dkr_level_to_gltf.py "$DKR" whale_bay build/dkr_tracks --mk64
+$N64KR dkr-level "$DKR" whale_bay build/dkr_tracks --mk64
 "$BLENDER" -b --python tools/n64kr/blender_dkr_track.py -- build/dkr_tracks/whale_bay_mk64 build/x64/mods whale_bay
-python -I tools/n64kr/dkr_track_scene.py build/dkr_tracks/whale_bay_mk64 build/x64/mods whale_bay "Whale Bay"
+$N64KR dkr-track-scene build/dkr_tracks/whale_bay_mk64 build/x64/mods whale_bay "Whale Bay"
 ```
 
 What each step does:
 
-1. **`dkr_level_to_gltf.py --mk64`** reads the level from your ROM and writes `build/dkr_tracks/whale_bay_mk64/`:
+1. **`n64kr dkr-level --mk64`** reads the level from your ROM and writes `build/dkr_tracks/whale_bay_mk64/`:
    - the track as glTF plus textures, scaled to MK64 size, with the start at the origin racing toward −Z;
    - each material tagged with MK64 surface, collision and draw layer;
    - `whale_bay_mk64.json` with the AI path, built from one vehicle's checkpoints, plus the start grid and item box positions.
 2. **`blender_dkr_track.py`** builds the SpaghettiKart track with Fast64 and writes the mod `build/x64/mods/n64kr-dkr-whale_bay/`. It also saves a `.blend` next to the converted files, so you can fix things by hand and re-export.
-3. **`dkr_track_scene.py`** writes `scene.json`: the name, resource id `n64kr:dkr_whale_bay`, item boxes, minimap and sky colours.
+3. **`n64kr dkr-track-scene`** writes `scene.json`: the name, resource id `n64kr:dkr_whale_bay`, item boxes, minimap and sky colours.
 
 Read the tool output before going in game. The converter prints the AI path size, the checkpoint count and the start grid's range (`MK64 layout: ... start grid z a..b`); all grid values should be positive (behind the line).
 
@@ -66,7 +66,7 @@ Build (`cmake --build build/x64 --config Release`) and race.
 
 ## 5. Music
 
-Converted DKR tracks have no music yet (`Sequence: -1` in `scene.json`, so the game plays nothing). The Rust tool's sequence renderer was written for GoldenEye but reads the same libultra bank format DKR uses, so DKR music is a natural next step. See the GoldenEye tutorial for how songs are registered and assigned to a track.
+Converted DKR tracks have no music yet (`Sequence: -1` in `scene.json`, so the game plays nothing). The `n64kr` tool's sequence renderer was written for GoldenEye but reads the same libultra bank format DKR uses, so DKR music is a natural next step. See the GoldenEye tutorial for how songs are registered and assigned to a track.
 
 ## Limits to know
 
