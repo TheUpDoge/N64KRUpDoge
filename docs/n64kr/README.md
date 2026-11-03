@@ -2,6 +2,8 @@
 
 N64KR is a fork of [SpaghettiKart](https://github.com/HarbourMasters/SpaghettiKart) (the native PC port of Mario Kart 64) that brings in racers, tracks, physics, music and hazards from **Diddy Kong Racing** and **GoldenEye 007**, generated from ROMs you own. Character, vehicle and handling are separate, so any racer can drive any vehicle on any track.
 
+It gets past three of MK64's hardest limits: **more than 8 racers** (select screen pages and a character registry), **more than 4 cups** (N64KR cups with their own pages), and **content from other games** (formats decoded from the DKR and GoldenEye decomps). See [the three big hurdles](HOW_IT_WORKS.md#the-three-big-hurdles).
+
 | Read | For |
 |---|---|
 | [HOW_IT_WORKS.md](HOW_IT_WORKS.md) | What changed, why, and how each piece was done, plus the bugs that cost the most time and their causes |

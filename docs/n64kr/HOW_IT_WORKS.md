@@ -6,6 +6,7 @@ Nothing from any ROM is in this repository. The tools read your ROMs and write t
 
 Claims below carry the project's evidence labels: **VERIFIED** (read in source, seen in tool or build output, or tested in game), **CONCLUSION** (follows from verified facts) and **HYPOTHESIS** (not yet checked). The step-by-step records with file and line references are in [`recon/`](../../recon).
 
+- [The three big hurdles](#the-three-big-hurdles)
 - [1. The idea: a character doesn't own its physics](#1-the-idea-a-character-doesnt-own-its-physics)
 - [2. Living inside SpaghettiKart: thin hooks](#2-living-inside-spaghettikart-thin-hooks)
 - [3. Physics: profiles, movement models and DKR's hovercraft](#3-physics-profiles-movement-models-and-dkrs-hovercraft)
@@ -18,6 +19,18 @@ Claims below carry the project's evidence labels: **VERIFIED** (read in source, 
 - [10. How the work was done](#10-how-the-work-was-done)
 
 ---
+
+## The three big hurdles
+
+Three things Mario Kart 64's code was never built for, and that looked impossible to add without rewriting large parts of the game:
+
+| Hurdle | Why it was hard [VERIFIED: source] | How N64KR does it |
+|---|---|---|
+| **More than 8 racers** | MK64 assumes exactly 8 characters with ids 0–7: the select grid, CPU rosters, GP standings (`gGPPointsByCharacterId[8]`), rivals, voice ids, HUD and record saves, all in tables sized for 8. | A **character registry** (ids up to 15) that every character-keyed read goes through ([section 4](#4-characters-from-other-games)). **Select screen pages** keep the menus' 8-seat bookkeeping untouched; only the racer that spawns becomes the new character. Unpicked new racers take CPU seats and map back for rivals and standings. |
+| **More than 4 cups** | The cup select draws per-cup images (icons, course lists, previews), the battle cup is fixed at index 4 (`BATTLE_CUP`), and time trial records are keyed by `cup × 4 + course`. | N64KR cups go **after** the battle cup, so every stock index keeps its meaning. Cup cycling skips cups a mode can't use, and an N64KR cup draws its own page (banner, course list, source game) instead of the per-cup images ([section 8](#8-menus-pages-cups-arrows)). A cup is one short entry in `src/n64kr/cups.cpp`. |
+| **Content from other games** | There were no tools to bring another game's racers, tracks or music into SpaghettiKart; DKR's and GoldenEye's formats differ from MK64's at every level (compression, models, animation, audio). | Formats decoded from the community decomps and turned into SpaghettiKart-native assets ([sections 5–7](#5-dkr-tracks)): tracks through Fast64, racers as sprites, 3D models, faces and voices, music rendered from the original sequences. |
+
+All three are done with thin hooks into SpaghettiKart's own files ([section 2](#2-living-inside-spaghettikart-thin-hooks)), so upstream updates can still be merged.
 
 ## 1. The idea: a character doesn't own its physics
 
