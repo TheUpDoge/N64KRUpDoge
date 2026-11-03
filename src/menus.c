@@ -26,6 +26,7 @@
 #include "port/Game.h"
 #include "n64kr/vehicle_select.h" // N64KR HOOK
 #include "n64kr/character_select.h" // N64KR HOOK
+#include "n64kr/intro.h" // N64KR HOOK
 
 /** BSS **/
 s32 gIntroModelZEye;
@@ -862,6 +863,7 @@ void logo_intro_menu_act(struct Controller* controller, UNUSED u16 controllerIdx
 
     // If any button is pressed then fade audio out
     if ((is_screen_being_faded() == 0) && (btnAndStick)) {
+        n64kr_intro_skip(); // N64KR HOOK: stop the N64KR intro's music
         //! @todo Label audio funcs
         func_800CA388(0x3C);
 

@@ -43,7 +43,10 @@ Generate the shared GoldenEye assets once:
 ```bash
 $N64KR ge-hazards "$GE" build/x64/mods/n64kr-ge-assets
 $N64KR ge-audio "$GE" build/x64/mods/n64kr-ge-assets
+$N64KR ge-intro "$GE" build/x64/mods/n64kr-ge-assets   # the boot intro's gun barrel
 ```
+
+`ge-intro <ROM> <mod dir> [preview dir]` also writes contact sheets of Bond's poses (side and front, a quick software render) and the rifling image into the preview folder, so you can check poses without starting the game.
 
 Any custom track's `scene.json` can then use them: a converted DKR track, or a track you made in SpaghettiKart's editor.
 

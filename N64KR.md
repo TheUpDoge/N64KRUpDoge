@@ -33,6 +33,7 @@ All game content comes from **your own ROMs** at build or run time. This reposit
 | GoldenEye hazards | Oil drums on the road explode when touched (chain reactions, racers tumble); two of Dam's own watchtowers per track, each with a Dam guard (real GoldenEye model and animation) who raises his KF7 and fires bursts at passing racers. | Tested in game |
 | GoldenEye music and sound | The Dam theme plays on the Dam tracks (rendered from GoldenEye's own sequences and instruments, looping; the action version on the final lap); gunfire, explosions, ricochets. | Tested in game |
 | **Rare Cup** | A fifth cup in the cup select (after Special Cup, for Grand Prix and VS): Ancient Lake, Fossil Canyon (DKR), Dam Speedway, Dam Speedway B. Drawn as its own page: banner, course list and preview box as text. | Tested in game |
+| **Boot intro** | Before the Harbour Masters intro: the credits ("Envisioned and produced by UpDoge, augmented and created by Claude"), GoldenEye's gun barrel with its intro music (the dots, the barrel sliding in, Bond walking, turning and firing, the blood, the wobble, on GoldenEye's own timing from the decomp), then our own nuke flash and shockwave clearing to the N64KR title. Any button skips it; CVar `gN64KR.Intro` (default 1). | Checked in screenshots; skipping and sound not yet tested by hand |
 | **3D racers** | Characters with a 3D model are drawn as real-time 3D instead of sprites (Diddy, from his DKR model, with steering poses). Boo/Lakitu translucency, boost afterimage and steering front wheels in progress. Sprites stay as the fallback. | Body tested in game; effects built, not yet tested |
 
 ### Known limits
@@ -66,6 +67,7 @@ Build once with `cargo build --release` in `tools/n64kr-rs` (the program is `too
 | `ge-dam-speedway [a\|b]` | Dam Speedway (A) or the twin-Dam B: track glTF + layout (AI path, item boxes, hazards, music) for `blender_dkr_track.py` / `dkr-track-scene`. |
 | `ge-hazards` | Barrel, guard poses and effect sprites as in-game resources (mod `n64kr-ge-assets`). |
 | `ge-audio` | GoldenEye songs rendered to looping WAV (an offline port of libultra's sequence player) and sound effects. |
+| `ge-intro` | The boot intro's gun barrel: Bond (body, Brosnan's head, the PP7 in his gun hand) posed through his walk and shot as display lists, and the barrel's rifling image (RLE-decoded, full size). |
 
 The DKR commands were ported from N64KR's earlier Python tools and checked against them on the same ROM: every output matched (WAV, display list, vertex and texture files byte for byte, glTF and JSON by value, PNGs pixel for pixel, glTF buffers byte for byte).
 
@@ -88,6 +90,7 @@ tools/n64kr-rs/target/release/n64kr dkr-track-scene build/ge_tracks/dam_speedway
 tools/n64kr-rs/target/release/n64kr dkr-track-scene build/ge_tracks/dam_speedway_b build/x64/mods dam_speedway_b "Dam Speedway B" ge
 tools/n64kr-rs/target/release/n64kr ge-hazards "<GoldenEye ROM>.z64" build/x64/mods/n64kr-ge-assets
 tools/n64kr-rs/target/release/n64kr ge-audio "<GoldenEye ROM>.z64" build/x64/mods/n64kr-ge-assets
+tools/n64kr-rs/target/release/n64kr ge-intro "<GoldenEye ROM>.z64" build/x64/mods/n64kr-ge-assets
 ```
 
 ### Making a DKR racer (Diddy; Banjo and Conker the same way with `BanjoCar`/`ConkaCar`)

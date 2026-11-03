@@ -112,7 +112,10 @@ $N64KR dkr-track-scene build/ge_tracks/dam_speedway build/x64/mods dam_speedway 
 $N64KR dkr-track-scene build/ge_tracks/dam_speedway_b build/x64/mods dam_speedway_b "Dam Speedway B" ge
 $N64KR ge-hazards "$GE" build/x64/mods/n64kr-ge-assets
 $N64KR ge-audio "$GE" build/x64/mods/n64kr-ge-assets
+$N64KR ge-intro "$GE" build/x64/mods/n64kr-ge-assets
 ```
+
+`ge-intro` makes the boot intro's gun barrel (Bond, his walk and shot, the barrel's rifling). Without it the intro goes straight from the credits to the N64KR title.
 
 The track export loads Fast64 from your Blender add-ons; if `--factory-startup` keeps it from loading on your setup, drop that flag.
 
@@ -120,6 +123,7 @@ The track export loads Fast64 from your Blender add-ons; if `--factory-startup` 
 
 Start the game from `build/x64` again; mods are picked up from `build/x64/mods/` at start.
 
+- **Intro:** the game opens with the N64KR intro: the credits, GoldenEye's gun barrel with its music, and a nuke flash that clears to the N64KR title. Any button skips it. To turn it off, add `"Intro": 0` to the `"gN64KR"` block under `"CVars"` in `build/x64/spaghettify.cfg.json` (CVar `gN64KR.Intro`).
 - **Characters:** push right past the character grid (or follow the arrow) to the **DKR page** with Diddy, Banjo and Conker. **R** switches Kart / Hover. DKR racers nobody picks join as CPUs.
 - **Tracks:** in Grand Prix or VS, move past the Special Cup (follow the arrow) to the **Rare Cup**: Ancient Lake, Fossil Canyon, Dam Speedway, Dam Speedway B. The Rare Cup only appears when all four tracks are installed.
 

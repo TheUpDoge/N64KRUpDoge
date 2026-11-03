@@ -36,6 +36,7 @@ pub const SFX: &[(&str, usize)] = &[
     ("hit_metal", 72),   // HIT_BULLET_METAL_A_SFX
     ("alarm", 161),      // ALARM1_SFX
     ("cart", 122),       // CART_SPENT_SFX, a spent case
+    ("rifle_big", 111),  // GUN_RIFLE7BIG_1_SFX, Bond's shot in the gun barrel intro
 ];
 
 pub const SFX_PITCH_SHIFT_CENTS: i32 = -6000; // DEFAULT_SETUP_PITCH_SHIFT

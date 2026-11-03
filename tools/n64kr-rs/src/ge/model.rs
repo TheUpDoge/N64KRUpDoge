@@ -47,6 +47,10 @@ pub const MODEL_FILES: &[(&str, usize, usize, usize, usize)] = &[
     ("CheadpeteZ", 7488592, 1424, 2, 4),
     ("CheadscottZ", 7492336, 1408, 2, 5),
     ("CheadshaunZ", 7493744, 1504, 2, 4),
+    // The gun barrel intro: Bond in his tuxedo, Brosnan's head, the PP7.
+    ("CdjbondZ", 7382992, 11920, 7, 13),
+    ("CheadbrosnanZ", 7445856, 3408, 2, 5),
+    ("PchrwppkZ", 8189712, 576, 3, 5),
 ];
 
 /// Row-vector 4x4 matrix as GoldenEye keeps them: p' = p.x m[0] + p.y m[1] + p.z m[2] + m[3].

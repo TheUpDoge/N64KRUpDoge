@@ -56,6 +56,7 @@
 #include "audio/heap.h"
 #include "n64kr/vehicle_select.h" // N64KR HOOK
 #include "n64kr/character_select.h" // N64KR HOOK
+#include "n64kr/intro.h" // N64KR HOOK
 #include <assets/models/startup_logo.h>
 
 const char* GetCupName(void);
@@ -6364,6 +6365,9 @@ void render_menus(MenuItem* arg0) {
         gDPPipeSync(gDisplayListHead++);
         switch (arg0->type) {
             case MENU_ITEM_UI_HARBOUR_MASTERS:
+                if (n64kr_intro_draw()) { // N64KR HOOK: the N64KR intro plays first
+                    break;
+                }
                 HM_DrawIntro();
                 break;
             case MENU_ITEM_UI_LOGO_INTRO:
@@ -9128,6 +9132,9 @@ void handle_menus_with_pri_arg(s32 priSpecial) {
 
         switch (type) {
             case MENU_ITEM_UI_HARBOUR_MASTERS:
+                if (n64kr_intro_tick()) { // N64KR HOOK: the N64KR intro plays first
+                    break;
+                }
                 HM_TickIntro();
                 menuItem->param1++;
                 break;

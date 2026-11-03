@@ -34,6 +34,7 @@ SLICE-6 first DKR track (`recon/005-content-merge/`): Ancient Lake converts from
 SLICE-7 vehicle select (`recon/006-selection/`): R on the character select screen toggles Kart/Hover per player.
 SLICE-8 character registry (`src/n64kr/character.{h,c}`): characterId indexes N64KR characters; MK64 lookups go through n64kr_char_voice/sprites/hud/body/ai. Watch item: one unexplained intermittent crash (null I4 texture, Wario Stadium race start).
 SLICE-9 first DKR character (`recon/006-selection/SLICE-9_First_DKR_Character.md`): Diddy rendered from his DKR model into kart sprites (`n64kr dkr-racer` → `blender_dkr_racer_sprites.py`), registry id 9 (8 stays MK64's "no character" marker); L on the select screen puts him in a cell's seat.
+Boot intro (`recon/011-intro/`): credits, GoldenEye's gun barrel (`n64kr ge-intro` + `ge-audio`) and our nuke flash before the Harbour Masters intro, in `src/n64kr/intro.cpp` (hooks in `menu_items.c`, `menus.c`); CVar `gN64KR.Intro`.
 
 - **SLICE-0, baseline:** clone with `--recursive`, configure and build per SpaghettiKart's `docs/BUILDING.md`, generate `mk64.o2r` from the ROM, then drive one race. Record build time, warnings and anything broken.
 - **SLICE-1, VehicleProfile seam:** add `n64kr::VehicleProfile` (top speed, gravity, friction, acceleration curve, handling, bounding box, hop). Add a per-player `vehicleProfileId`. Route the `gKart*Table[player->characterId]` physics reads (mostly `src/player_controller.c`, also `effects.c` and `spawn_players.c`) through it. Leave the `kart_dma.c` texture lookups keyed by character.

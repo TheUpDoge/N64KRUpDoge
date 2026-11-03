@@ -24,6 +24,8 @@ pub const ANIMS: &[(&str, usize)] = &[
     ("fire_standing", 0x144),
     ("fire_standing_fast", 0x214),
     ("fire_hip", 0x318),
+    ("bond_eye_walk", 0x4144), // the gun barrel intro (decomp src/game/title.c)
+    ("bond_eye_fire", 0x4298),
 ];
 
 /// Guard skeleton: joint -> mtxA (decomp assets/embedded/skeletons/guard.inc.c JOINTLIST(guard)).
@@ -34,6 +36,11 @@ pub struct Anim {
     width: u8,
     frame_bytes: usize,
     address: usize,
+    /// Root motion: bit field descriptors and bitstream (offsets into the
+    /// animation table) and the bits each frame takes.
+    root_fields: usize,
+    root_bits: usize,
+    root_stream: usize,
 }
 
 pub fn load(rom: &[u8], name: &str) -> Result<Anim, String> {
@@ -45,7 +52,37 @@ pub fn load(rom: &[u8], name: &str) -> Result<Anim, String> {
         frames: u16_be(s, 4),
         width: s[6],
         frame_bytes: (u16_be(s, 14) >> 3) as usize,
+        root_fields: u32_be(s, 8) as usize,
+        root_bits: u16_be(s, 12) as usize,
+        root_stream: u32_be(s, 16) as usize,
     })
+}
+
+/// Root motion at `frame`: the position node's x, y, z (model units; y is the
+/// hip height) and its turn in radians (decomp src/game/model.c
+/// modelAnimReadRootMotionValue, sub_GAME_7F06D2E4 with joint 0, whose mtxA is 0).
+/// A field descriptor is 6 bytes: u16 bit offset, u8 bit count, pad, u16 value
+/// offset; the value is read big-endian, sign-extended, then offset.
+pub fn root_motion(rom: &[u8], anim: &Anim, frame: u16) -> ([f32; 3], f32) {
+    let Some(table) = rom.get(DATA.0..DATA.0 + DATA.1) else { return ([0.0; 3], 0.0) };
+    let frame = frame.min(anim.frames.saturating_sub(1)) as usize;
+    let field = |i: usize| -> u16 {
+        let d = anim.root_fields + i * 6;
+        let Some(desc) = table.get(d..d + 6) else { return 0 };
+        let (bit, count, offset) = (u16_be(desc, 0) as usize + frame * anim.root_bits, desc[2] as u32, u16_be(desc, 4));
+        let mut v: u32 = 0;
+        for k in 0..count as usize {
+            let b = bit + k;
+            let byte = table.get(anim.root_stream + b / 8).copied().unwrap_or(0);
+            v = (v << 1) | ((byte >> (7 - b % 8)) & 1) as u32;
+        }
+        if count > 0 && count < 16 && v & (1 << (count - 1)) != 0 {
+            v |= ((1 << (16 - count)) - 1) << count;
+        }
+        (v as u16).wrapping_add(offset)
+    };
+    let pos = [field(0) as i16 as f32, field(1) as i16 as f32, field(2) as i16 as f32];
+    (pos, field(3) as f32 * std::f32::consts::TAU / 65535.0)
 }
 
 /// Reads `width` bits at `bit` (big-endian bit order) as a u16 turn.

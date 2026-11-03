@@ -13,7 +13,7 @@ Claims below carry the project's evidence labels: **VERIFIED** (read in source, 
 - [4. Characters from other games](#4-characters-from-other-games)
 - [5. DKR tracks](#5-dkr-tracks)
 - [6. DKR racers](#6-dkr-racers)
-- [7. GoldenEye: a track, hazards and music](#7-goldeneye-a-track-hazards-and-music)
+- [7. GoldenEye: a track, hazards, music and the intro](#7-goldeneye-a-track-hazards-music-and-the-intro)
 - [8. Menus: pages, cups, arrows](#8-menus-pages-cups-arrows)
 - [9. Lessons: bugs, causes and fixes](#9-lessons-bugs-causes-and-fixes)
 - [10. How the work was done](#10-how-the-work-was-done)
@@ -106,7 +106,7 @@ One DKR racer object (`diddycar`, `BanjoCar`, `ConkaCar`, ...) becomes a full N6
 
 Two engine facts made the HD faces possible [VERIFIED: libultraship source, screenshots]: SpaghettiKart loads a PNG next to a texture resource at whatever size it is, and libultraship takes texture coordinates from the **tile** MK64 loads, not from the image. So a 256 px face fills the 64×64 face slot with four times the detail, with no change to MK64's menu code.
 
-## 7. GoldenEye: a track, hazards and music
+## 7. GoldenEye: a track, hazards, music and the intro
 
 GoldenEye commands are in the same Rust tool (`tools/n64kr-rs`), using the [GoldenEye decomp](https://github.com/n64decomp/007) as the format reference.
 
@@ -118,6 +118,12 @@ GoldenEye commands are in the same Rust tool (`tools/n64kr-rs`), using the [Gold
   - **Variant B:** two Dams facing each other across the water, joined into a longer oval.
 - **Hazards** (`ge_hazards.cpp`). Track actors for oil drums (explode on touch, chain reactions, racers tumble) and Dam guards: the real guard model and animation, raising his KF7 and firing bursts at racers in range.
 - **Music and sound** (`ge-audio`). An offline port of libultra's compact sequence player renders GoldenEye's own sequences with its own instruments (ALBank + VADPCM) to looping WAV. The engine plays them through SpaghettiKart's HMAS mixer under N64KR sequence ids (the Dam theme, and DamX on the final lap). Sound effects go through a small positional mixer with a soft limiter.
+- **The boot intro** (`ge-intro`, `src/n64kr/intro.cpp`). Before the Harbour Masters intro: a credit card, then GoldenEye's gun barrel, then our own nuke flash clearing to the N64KR title.
+  - **Timing from the decomp.** `src/game/title.c` gives every number: the dots run 6 units a frame across a 1280 × 960 screen at 60 frames a second, the barrel slides in at 5.818 units a frame at 30, and Bond's clock counts 60 ticks a second (fire animation at tick 137, speed-up at 212, the shot at 230). The engine plays the same timeline in seconds, with the intro music starting on the dots as in GoldenEye.
+  - **Bond.** His body, Brosnan's head and the PP7 are posed by `bond_eye_walk` and `bond_eye_fire`, one display list per pose (35 walk + 61 fire poses), with GoldenEye's root motion for the hip bob. The gun hangs on joint 9, the node title.c attaches it to (`Switches[3]`), with no extra turn.
+  - **Our staging.** GoldenEye's camera and root motion put Bond off-screen unless its character movement is reproduced exactly, so the camera looks at Bond's side from his left: he walks in place to screen left, the barrel tracks him, and he turns to fire straight into the lens.
+  - **The rifling.** GoldenEye draws its 440 × 299 image one row at a time, because it doesn't fit in TMEM. N64KR draws it as one quad: a small stub texture with the full image as a PNG next to it, which the port loads at full size.
+  - **Ours, not GoldenEye's.** The blood is a curtain of drips in GoldenEye's colour (GoldenEye's is an animated image in code). The nuke flash, shockwave and block-letter title are drawn from shapes in code, with GoldenEye's explosion sounds pitched down.
 
 ## 8. Menus: pages, cups, arrows
 

@@ -11,6 +11,7 @@ mod png;
 mod rarezip;
 mod rom;
 mod track;
+mod ge_intro;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -30,6 +31,9 @@ Commands:
   ge-hazards <GoldenEye ROM> <mod dir>       Dam hazards for the engine: barrel, posed guards, effect sprites
                                              (libultraship resources in <mod dir>/ge/)
   ge-audio <GoldenEye ROM> <mod dir>         Music (rendered, looping) and sound effects as WAV for the engine
+  ge-intro <GoldenEye ROM> <mod dir> [preview dir]
+                                             The boot intro's gun barrel: Bond posed through his walk and shot,
+                                             the barrel's rifling (<mod dir>/ge/intro/); preview: contact sheets
   ge-guard <GoldenEye ROM> <dir> <anim> <frame> [head]
                                              A Dam guard with head and KF7, posed, as glTF
   ge-dam-speedway <GoldenEye ROM> <dir> [a|b]
@@ -904,6 +908,8 @@ fn main() -> ExitCode {
         ["ge-model", rom, name, dir, anim, frame] => ge_model(rom, name, dir, Some((anim, frame))),
         ["ge-hazards", rom, dir] => ge_hazards(rom, dir),
         ["ge-audio", rom, dir] => ge_audio(rom, dir),
+        ["ge-intro", rom, dir] => ge_intro::ge_intro(rom, dir, None),
+        ["ge-intro", rom, dir, preview] => ge_intro::ge_intro(rom, dir, Some(preview)),
         ["ge-guard", rom, dir, anim, frame] => ge_guard(rom, dir, anim, frame, "CheaddaveZ"),
         ["ge-guard", rom, dir, anim, frame, head] => ge_guard(rom, dir, anim, frame, head),
         ["ge-dam-speedway", rom, dir] => ge_dam_speedway(rom, dir, "a"),
