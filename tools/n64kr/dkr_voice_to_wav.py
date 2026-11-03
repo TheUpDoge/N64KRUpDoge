@@ -117,6 +117,29 @@ def wav_bytes(rate, samples):
             struct.pack("<IHHIIHH", 16, 1, 1, rate, rate * 2, 2, 16) + b"data" + struct.pack("<I", len(pcm)) + pcm)
 
 
+def crossed_clips(bites):
+    """Clips to leave out: Banjo and Conker have fewer recordings than DKR's
+    8 positive + 8 negative slots, and DKR fills the lists with repeats, some
+    across lists (from the sound table: Banjo's positive2 is his "woah",
+    positive5 = negative4, negative1 = his "guh-huh"; Conker's positive7 =
+    negative2). N64KR plays the positive list when a racer hits someone, so
+    Banjo could answer a shell hit with "woah" (user playtest). Keep each
+    recording once per list, a negative one out of the positive list (unless
+    it is also a laugh line) and a laugh out of the negative list."""
+    cheer = {bites[c] for c in ("laugh", "laugh2") if c in bites}
+    negative = {b for c, b in bites.items() if c.startswith("negative") or c == "woah"}
+    drop, seen = set(), set()
+    for clip, bite in bites.items():
+        group = clip[:8]
+        if group not in ("positive", "negative"):
+            continue
+        if (group == "positive" and bite in negative and bite not in cheer) or \
+                (group == "negative" and bite in cheer) or (group, bite) in seen:
+            drop.add(clip)
+        seen.add((group, bite))
+    return drop
+
+
 def extract(rom, racer, out_root):
     if racer not in VOICE_GROUP:
         sys.exit(f"Unknown racer '{racer}'. Known: {', '.join(VOICE_GROUP)}")
@@ -138,10 +161,18 @@ def extract(rom, racer, out_root):
     out_dir = os.path.join(out_root, "sound", "n64kr", racer)
     os.makedirs(out_dir, exist_ok=True)
     lines = []
+    bites = {clip: u16(sounds, sound_id * 10) for clip, sound_id in clips.items()}
+    drop = crossed_clips({c: b for c, b in bites.items() if 1 <= b <= sound_count})
     for clip, sound_id in clips.items():
-        bite, volume, pitch = u16(sounds, sound_id * 10), sounds[sound_id * 10 + 2], sounds[sound_id * 10 + 4]
+        bite, volume, pitch = bites[clip], sounds[sound_id * 10 + 2], sounds[sound_id * 10 + 4]
         if not (1 <= bite <= sound_count):
             print(f"  {clip}: sound id 0x{sound_id:03X} has no bank sound ({bite}), skipped")
+            continue
+        if clip in drop:
+            stale = os.path.join(out_dir, f"{clip}.wav")
+            if os.path.exists(stale):
+                os.remove(stale)
+            lines.append(f"{clip} 0x{sound_id:03X} bite {bite} left out (repeat or crossed list)")
             continue
         snd = u32(ctl, inst + 16 + 4 * (bite - 1))
         keymap = u32(ctl, snd + 4)
@@ -163,7 +194,7 @@ def extract(rom, racer, out_root):
                      f"(keyBase {key_base} detune {detune} pitch {pitch}) vol {volume} next {next_sound}")
     with open(os.path.join(out_dir, f"{racer}_voice.txt"), "w") as fh:
         fh.write("\n".join(lines) + "\n")
-    print(f"Voice '{racer}': {len(lines)} clips in {out_dir} (bank header rate {rate} Hz, unused)")
+    print(f"Voice '{racer}': {len(lines) - len(drop)} clips in {out_dir} (bank header rate {rate} Hz, unused)")
     print("\n".join("  " + line for line in lines))
 
 

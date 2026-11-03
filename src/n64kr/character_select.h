@@ -72,6 +72,15 @@ void n64kr_cpu_roster(s16* roster, s32 count);
 // took hands the rival role to that CPU.
 s32 n64kr_rival_character(s32 stockId);
 
+// The cup award screen's portrait (MENU_ITEM_TYPE_130 and func_800AF270,
+// src/menu_items.c) shows the winner's select-screen face and nameplate. A
+// DKR page character has one face (no celebrate / defeat animation) and a
+// blank plate with the name printed over it, as on its cell; `stock` is
+// returned for everyone else.
+MkAnimation* n64kr_char_face(s32 characterId, MkAnimation* stock);
+MenuTexture* n64kr_char_nameplate(s32 characterId, MenuTexture* stock);
+void n64kr_char_nameplate_label(s32 characterId, s32 column, s32 row);
+
 // GP standings seed (func_800A3A10, src/menu_items.c): the racers' character
 // ids in ascending order, which is 0..7 for a stock roster.
 s32 n64kr_gp_seed_character(s32 index);

@@ -349,6 +349,7 @@ void render_players(Camera* camera, s32 screenIdx) {
     };
 
     gPlayersToRenderCount = 0;
+    n64kr_racer3d_set_camera(camera->pos); // N64KR HOOK: 3D racers depth-sort like sprites
     init_render_player(gPlayerOne, camera, PLAYER_ONE, screenIdx);
     init_render_player(gPlayerTwo, camera, PLAYER_TWO, screenIdx);
     init_render_player(gPlayerThree, camera, PLAYER_THREE, screenIdx);

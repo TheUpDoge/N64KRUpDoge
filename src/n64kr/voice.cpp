@@ -1,5 +1,6 @@
 // N64KR: own voice clips, played through the port's HMAS mixer (see voice.h).
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -60,6 +61,7 @@ struct Clip {
 struct Voice {
     std::unordered_map<std::string, Clip> clips;
     std::chrono::steady_clock::time_point lastStart;
+    Clip* last = nullptr; // last clip played (map nodes don't move)
 };
 
 std::unordered_map<s32, Voice> sVoices;
@@ -87,7 +89,8 @@ Clip* load_clip(s32 characterId, const char* voiceName, Voice& voice, const std:
     const std::string path = std::string("sound/n64kr/") + voiceName + "/" + name + ".wav";
     auto file = Ship::Context::GetRawInstance()->GetResourceManager()->LoadFileProcess(path);
     if ((file == nullptr) || (file->Buffer == nullptr) || file->Buffer->empty()) {
-        SPDLOG_WARN("[n64kr] voice clip {} not found", path);
+        // Expected for repeats the extractor leaves out (dkr_voice_to_wav.py crossed_clips).
+        SPDLOG_DEBUG("[n64kr] voice clip {} not in the mod", path);
         return nullptr;
     }
     clip.wav.assign(file->Buffer->begin(), file->Buffer->end());
@@ -115,17 +118,23 @@ extern "C" s32 n64kr_voice_play_sound(u32 soundBits, const f32* position, u8 cam
         return 1;
     }
 
-    // Random clip from the slot's group; skip clips the mod doesn't have.
-    const auto& names = kGroupClips[kSlotGroup[soundBits & 0xF]];
-    const size_t pick = (size_t) std::rand() % names.size();
-    Clip* clip = nullptr;
-    for (size_t tries = 0; (tries < names.size()) && (clip == nullptr); tries++) {
-        const std::string& name = names[(pick + tries) % names.size()];
-        clip = load_clip(characterId, c->voiceName, voice, name, clip_number(name));
+    // Random clip from the slot's group, among the clips the mod has (the
+    // extractor leaves out repeated recordings), and not the last one played
+    // when there is a choice (DKR's play_random_character_voice does the same).
+    std::vector<Clip*> available;
+    for (const auto& name : kGroupClips[kSlotGroup[soundBits & 0xF]]) {
+        Clip* candidate = load_clip(characterId, c->voiceName, voice, name, clip_number(name));
+        if (candidate != nullptr) {
+            available.push_back(candidate);
+        }
     }
-    if (clip == nullptr) {
+    if ((available.size() > 1) && (voice.last != nullptr)) {
+        available.erase(std::remove(available.begin(), available.end(), voice.last), available.end());
+    }
+    if (available.empty()) {
         return 1;
     }
+    Clip* clip = available[(size_t) std::rand() % available.size()];
 
     // Ground distance only: MK64's listener-relative vectors keep y = 0
     // (func_800C1C88), and y = 100000 is its "sound finished" marker, written
@@ -145,6 +154,7 @@ extern "C" s32 n64kr_voice_play_sound(u32 soundBits, const f32* position, u8 cam
     }
 
     voice.lastStart = now;
+    voice.last = clip;
     GameEngine::Instance->gHMAS->Play(HMAS_SFX, clip->id, false);
     GameEngine::Instance->gHMAS->SetVolume(HMAS_SFX, volume);
     SPDLOG_DEBUG("[n64kr] voice clip id {} playing {}", clip->id, GameEngine::Instance->gHMAS->IsPlaying(HMAS_SFX));

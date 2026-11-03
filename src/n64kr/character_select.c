@@ -47,6 +47,44 @@ static MkAnimation sCellFaceAnim[DKR_CELLS][2] = {
     { { sCellTextures[2][0], 100 }, { NULL, 0 } },
 };
 
+// DKR page cell of a character; -1 if it has none.
+static s32 dkr_cell(s32 characterId) {
+    s32 cell;
+
+    for (cell = 0; cell < DKR_CELLS; cell++) {
+        if (sDkrPage[cell] == characterId) {
+            return cell;
+        }
+    }
+    return -1;
+}
+
+MkAnimation* n64kr_char_face(s32 characterId, MkAnimation* stock) {
+    s32 cell = dkr_cell(characterId);
+    return (cell >= 0) ? sCellFaceAnim[cell] : stock;
+}
+
+MenuTexture* n64kr_char_nameplate(s32 characterId, MenuTexture* stock) {
+    s32 cell = dkr_cell(characterId);
+    return (cell >= 0) ? sCellTextures[cell][1] : stock;
+}
+
+void n64kr_char_nameplate_label(s32 characterId, s32 column, s32 row) {
+    const N64krCharacter* c = n64kr_get_character(characterId);
+    char label[16];
+    s32 i;
+
+    if ((dkr_cell(characterId) < 0) || (c == NULL)) {
+        return;
+    }
+    for (i = 0; (c->name[i] != '\0') && (i < 15); i++) {
+        label[i] = (char) toupper((unsigned char) c->name[i]);
+    }
+    label[i] = '\0';
+    set_text_color(TEXT_YELLOW);
+    print_text1_center_mode_1(column + 0x20, row + 0x40, label, 0, 0.45f, 0.45f);
+}
+
 // Character on (page, cell 1..8); -1 = nothing there.
 static s32 page_cell_character(s32 page, s32 gridId) {
     if ((gridId < 1) || (gridId > GRID_CELLS)) {
@@ -173,17 +211,9 @@ s32 n64kr_grid_cell_draw(MenuItem* item, s32 cell) {
         return 0;
     }
     if ((cell < DKR_CELLS) && (sDkrPage[cell] >= 0)) {
-        const N64krCharacter* c = n64kr_get_character(sDkrPage[cell]);
-        char label[16];
-        s32 i;
         func_800A12BC(item, sCellTextures[cell][1]);
         func_8009A76C(item->D_8018DEE0_index, item->column, item->row, item->param1);
-        for (i = 0; (c != NULL) && (c->name[i] != '\0') && (i < 15); i++) {
-            label[i] = (char) toupper((unsigned char) c->name[i]);
-        }
-        label[i] = '\0';
-        set_text_color(TEXT_YELLOW);
-        print_text1_center_mode_1(item->column + 0x20, item->row + 0x40, label, 0, 0.45f, 0.45f);
+        n64kr_char_nameplate_label(sDkrPage[cell], item->column, item->row);
     }
     return 1; // empty cells draw nothing
 }

@@ -1,7 +1,9 @@
 """Export a DKR racer as an in-game 3D model for N64KR's 3D racers.
 
 Usage (from the repo root):
-    python -I tools/n64kr/dkr_racer_to_model.py "<DKR .z64>" diddycar diddy build/x64/mods/n64kr-dkr-diddy
+    python -I tools/n64kr/dkr_racer_to_model.py "<DKR .z64>" diddycar diddy build/x64/mods/n64kr-dkr-diddy [size]
+
+size (default 1) multiplies WORLD_SCALE for this racer (Banjo 1.2, see below).
 
 Writes libultraship resources into <mod dir>/racers/<name>/ (ROM data: keep
 under build/, never commit):
@@ -24,6 +26,14 @@ Formats (read from the track export, tools/n64kr/blender_dkr_track.py output):
 DisplayList / Vertex XML resources, texture resources = 0x40-byte header
 ("OTEX", version 0) + u32 type (2 = RGBA16), width, height, size, data
 (big-endian RGBA5551).
+
+Texture wrap follows the DKR texture header: flags 0x40 / 0x80 clamp S / T
+(TEX_FLAG_CLAMP_S/T, as the glTF export reads them). Nearly every racer
+texture clamps, and many UVs run well past the texture (Banjo -31..48 texels
+on 16-texel textures), where DKR shows the edge texel. Repeating them instead
+put extra eyes and fur patches on Banjo, Conker and Diddy (user playtest:
+Banjo "scuffed", Conker "odd in the face") [VERIFIED: UV ranges printed from
+the ROM, renders of the exported poses].
 """
 import json
 import math
@@ -42,6 +52,10 @@ POSE_FRAMES = [0, 10, 20, 30, 40, 48, 56, 64, 73]  # full right .. straight .. f
 # MK64 racer size, then at half that a little small (user playtests: "20 to
 # 35% larger"), so 0.06 x 1.3.
 WORLD_SCALE = 0.078
+# Per-racer size (command line): DKR's own object scales hardly differ
+# (object headers: Diddy 0.26, Banjo 0.27, Conker 0.22), but Banjo races on
+# DK's heavyweight stats and read "a bit small" at 1.0 next to MK64's racers
+# (user playtest), so he is exported at 1.2.
 VERTS_PER_LOAD = 30
 WHEEL_SIDES = 10
 # DKR draws wheels as flat camera-facing sprites; as solid cylinders at the
@@ -84,7 +98,7 @@ class Writer:
         self.write(name, HEADER + struct.pack("<IIII", 2, w, h, len(data)) + data)
         return w, h
 
-    def material(self, key, tex_name=None, w=0, h=0, cutout=False):
+    def material(self, key, tex_name=None, w=0, h=0, cutout=False, clamp_s=False, clamp_t=False):
         if key in self.materials:
             return self.materials[key]
         name = f"mat_{len(self.materials)}"
@@ -106,6 +120,8 @@ class Writer:
             # primitive alpha. No render mode here: the engine sets it with the
             # primitive alpha (opaque cutout normally, translucent for Boo / the
             # boost afterimage).
+            cms = "G_TX_CLAMP" if clamp_s else "G_TX_WRAP"
+            cmt = "G_TX_CLAMP" if clamp_t else "G_TX_WRAP"
             lines += ['\t<SetCombineLERP A0="G_CCMUX_TEXEL0" B0="G_CCMUX_0" C0="G_CCMUX_SHADE" D0="G_CCMUX_0" '
                       'Aa0="G_ACMUX_TEXEL0" Ab0="G_ACMUX_0" Ac0="G_ACMUX_PRIMITIVE" Ad0="G_ACMUX_0" ' + cycle2,
                       '\t<Texture S="65535" T="65535" Level="0" Tile="0" On="1"/>',
@@ -116,7 +132,7 @@ class Writer:
                       f'\t<LoadBlock Tile="7" Uls="0" Ult="0" Lrs="{w * h - 1}" Dxt="{(2048 + w * 2 // 8 - 1) // (w * 2 // 8)}" />',
                       '\t<PipeSync/>',
                       f'\t<SetTile Format="G_IM_FMT_RGBA" Size="G_IM_SIZ_16b" Line="{w * 2 // 8}" TMem="0" Tile="0" Palette="0" '
-                      f'Cms0="G_TX_WRAP" Cms1="G_TX_NOMIRROR" Cmt0="G_TX_WRAP" Cmt1="G_TX_NOMIRROR" '
+                      f'Cms0="{cms}" Cms1="G_TX_NOMIRROR" Cmt0="{cmt}" Cmt1="G_TX_NOMIRROR" '
                       f'MaskS="{int(math.log2(w))}" ShiftS="0" MaskT="{int(math.log2(h))}" ShiftT="0"/>',
                       f'\t<SetTileSize T="0" Uls="0" Ult="0" Lrs="{(w - 1) << 2}" Lrt="{(h - 1) << 2}"/>']
         else:
@@ -179,7 +195,7 @@ def wheel_corners(wheel, side_size, tread_rgb):
     return discs, [(p[0], p[1], p[2], 0, 0, r, g, b, 255) for p in tread], radius
 
 
-def export(rom, object_name, name, mod_dir):
+def export(rom, object_name, name, mod_dir, size=1.0):
     racer = racers.load_racer(rom, object_name)
     out_dir = os.path.join(mod_dir, "racers", name)
     writer = Writer(out_dir, f"racers/{name}")
@@ -193,11 +209,13 @@ def export(rom, object_name, name, mod_dir):
             group_mat[key] = writer.material("vertex_colour")
             continue
         tid = racer["textures"][tex_index]["id"]
-        w, h, rgba, _flags, _fmt = dkr.decode_texture(tex3d[tex3d_table[tid]:tex3d_table[tid + 1]])
+        w, h, rgba, flags, _fmt = dkr.decode_texture(tex3d[tex3d_table[tid]:tex3d_table[tid + 1]])
         tex_name = f"tex_{tid:04d}"
         tw, th = writer.texture(tex_name, w, h, rgba)
         # UVs are in texels * 32 of the original size; rescale if resampled.
-        group_mat[key] = (writer.material(("tex", tid), tex_name, tw, th, cutout=bool(key[4])), tw / w, th / h)
+        mat = writer.material(("tex", tid), tex_name, tw, th, cutout=bool(key[4]),
+                              clamp_s=bool(flags & dkr.TEX_FLAG_CLAMP_S), clamp_t=bool(flags & dkr.TEX_FLAG_CLAMP_T))
+        group_mat[key] = (mat, tw / w, th / h)
 
     # Wheels: side-on frame (last angle, spin 0) on the discs, tread colour from the head-on frame.
     wheel_mats, wheel_geo = [], []
@@ -264,7 +282,8 @@ def export(rom, object_name, name, mod_dir):
         wheels.append({"dl": f"wheel{k}", "centre": list(centre), "steers": bool(geo[2]["steers"])})
 
     info = {"object": object_name, "poses": POSE_FRAMES, "pose_count": len(POSE_FRAMES),
-            "straight_pose": POSE_FRAMES.index(40), "world_scale": WORLD_SCALE, "ground_dkr_units": ground,
+            "straight_pose": POSE_FRAMES.index(40), "world_scale": round(WORLD_SCALE * size, 5), "size": size,
+            "dkr_object_scale": racer["header"]["scale"], "ground_dkr_units": ground,
             "wheels": wheels,
             "space": "DKR units, Y up, facing +Z, tyre bottom at y = 0"}
     with open(os.path.join(out_dir, "model.json"), "w") as fh:
@@ -275,9 +294,10 @@ def export(rom, object_name, name, mod_dir):
 
 
 def main():
-    if len(sys.argv) != 5:
+    if len(sys.argv) not in (5, 6):
         sys.exit(__doc__)
-    export(dkr.Rom(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4])
+    size = float(sys.argv[5]) if len(sys.argv) == 6 else 1.0
+    export(dkr.Rom(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4], size)
 
 
 if __name__ == "__main__":

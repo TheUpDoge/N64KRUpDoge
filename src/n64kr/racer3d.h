@@ -46,6 +46,11 @@ typedef struct {
 // doesn't have it. Cached. (racer3d_model.cpp)
 const N64krRacerModel* n64kr_racer3d_model(const char* base);
 
+// From render_players (src/render_player.c): the camera this screen's racers
+// are drawn for. Models are pushed toward it like MK64's kart sprites
+// (racer3d.c kart_matrix).
+void n64kr_racer3d_set_camera(Vec3f cameraPos);
+
 // From render_kart (src/render_player.c), after the sprite position is known.
 // Returns 1 if the racer was drawn as a 3D model (skip the sprite), 0 otherwise.
 s32 n64kr_racer3d_draw(Player* player, s8 playerId, s8 screenId, Vec3f position);

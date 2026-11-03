@@ -1,5 +1,6 @@
 #include <libultraship.h>
 #include <defines.h>
+#include <math.h>
 
 #include "main.h"
 #include "effects.h"
@@ -23,6 +24,7 @@
 // fast (user playtest), so one cycle = half a turn.
 #define WHEEL_ROLL_SHIFT 5
 #define BOOST_ALPHA 0x40 // func_80025DE8's afterimage alpha
+#define SPRITE_DEPTH 6.0f // kart sprite quad's distance toward the camera (gPlayerOneVtx z = -6)
 
 // Render modes (the model's materials are 2-cycle; the first cycle passes
 // through). The translucent one is render_kart's for Boo and the Lakitu fizzle.
@@ -37,6 +39,9 @@ static Mtx sWheelMtx[2][NUM_PLAYERS * 4][N64KR_RACER3D_MAX_WHEELS];
 // half a turn per cycle would snap the wheel back; add its change instead.
 static u16 sWheelRoll[NUM_PLAYERS];
 static s16 sLastTyreSpeed[NUM_PLAYERS];
+// Camera the racers are being drawn for (n64kr_racer3d_set_camera).
+static Vec3f sCameraPos;
+static s32 sCameraSet = false;
 
 static u16 wheel_roll(const Player* player, s32 playerId) {
     if ((playerId < 0) || (playerId >= NUM_PLAYERS)) {
@@ -61,16 +66,50 @@ static f32 visual_turn(const Player* player) {
     return (turn > 1.0f) ? 1.0f : ((turn < -1.0f) ? -1.0f : turn);
 }
 
+void n64kr_racer3d_set_camera(Vec3f cameraPos) {
+    sCameraPos[0] = cameraPos[0];
+    sCameraPos[1] = cameraPos[1];
+    sCameraPos[2] = cameraPos[2];
+    sCameraSet = true;
+}
+
 // The kart's matrix: model faces +Z; mtxf_translate_rotate maps +Z to
 // (sin y, cos y), and the kart's forward is (-sin heading, cos heading).
+//
+// MK64 draws a kart sprite SPRITE_DEPTH units (x racer size) in front of the
+// kart, toward the camera: gPlayerOneVtx has z = -6, and the sprite is turned
+// by unk_048 = atan2s(kart - camera) (player_controller.c func_8002934C), so
+// local -z points at the camera [CONCLUSION from source]. A sprite therefore
+// wins the depth test against anything up to that far in front of its kart,
+// and covered 3D racers just ahead of it (user playtest: "layer error"). The
+// model is moved the same distance toward the camera and shrunk by the same
+// perspective, (d - shift) / d, so it looks the same on screen but depth-sorts
+// against sprites the way sprites do against each other.
 static void kart_matrix(Mat4 mtx, const N64krRacerModel* model, const Player* player, Vec3f position) {
     Vec3s orientation;
+    Vec3f at;
+    f32 size = gCharacterSize[n64kr_char_body(player->characterId)] * player->size;
+    f32 scale = model->scale * size;
+    f32 shift = SPRITE_DEPTH * size;
+    f32 dx = sCameraPos[0] - position[0];
+    f32 dy = sCameraPos[1] - position[1];
+    f32 dz = sCameraPos[2] - position[2];
+    f32 d = sqrtf((dx * dx) + (dy * dy) + (dz * dz));
 
+    at[0] = position[0];
+    at[1] = position[1];
+    at[2] = position[2];
+    if (sCameraSet && (d > shift * 2.0f)) {
+        at[0] += dx * (shift / d);
+        at[1] += dy * (shift / d);
+        at[2] += dz * (shift / d);
+        scale *= (d - shift) / d;
+    }
     orientation[0] = 0;
     orientation[1] = (s16) -(player->rotation[1] + player->unk_0C0);
     orientation[2] = 0;
-    mtxf_translate_rotate(mtx, position, orientation);
-    mtxf_scale(mtx, model->scale * gCharacterSize[n64kr_char_body(player->characterId)] * player->size);
+    mtxf_translate_rotate(mtx, at, orientation);
+    mtxf_scale(mtx, scale);
 }
 
 // Body pose and wheels, under the kart matrix already loaded.
