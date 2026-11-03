@@ -46,6 +46,11 @@ typedef struct {
 // doesn't have it. Cached. (racer3d_model.cpp)
 const N64krRacerModel* n64kr_racer3d_model(const char* base);
 
+// From func_80039AE4 (src/spawn_players.c), after MK64 sets its per-mode racer
+// cull distances: makes racers visible out to the track's far plane (all
+// racers, sprites too). CVar gN64KR.FarRacers (default 1): 0 = MK64's limits.
+void n64kr_racer_draw_distance(void);
+
 // From render_players (src/render_player.c): the camera this screen's racers
 // are drawn for. Models are pushed toward it like MK64's kart sprites
 // (racer3d.c kart_matrix).

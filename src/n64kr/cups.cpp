@@ -1,5 +1,6 @@
 // N64KR: cups of N64KR tracks in the cup select (see cups.h).
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
@@ -17,6 +18,7 @@ extern "C" {
 #include "main.h"
 #include "menus.h"
 #include "menu_items.h"
+#include "n64kr/character_select.h"
 extern char* gCupNames[];
 }
 
@@ -134,7 +136,34 @@ extern "C" s32 n64kr_cup_selectable(s32 index) {
     return 1;
 }
 
+// Arrows in the margins beside the cup row (icons and banner span x 23..296,
+// y 59..98) while a cup is being chosen: right of MK64's cups when N64KR cups
+// follow, left of an N64KR cup's page, right of it if another cup follows. The
+// N64KR cups are otherwise only found by moving past the Special Cup.
+static void cup_arrows() {
+    World* w = GetWorld();
+    if ((w == nullptr) || (gSubMenuSelection != SUB_MENU_MAP_SELECT_CUP)) {
+        return;
+    }
+    const s32 index = (s32) w->GetCupIndex();
+    bool before = false;
+    bool after = false;
+    for (s32 i = std::max(index + 1, (s32) N64KR_FIRST_CUP); i < (s32) w->Cups.size(); i++) {
+        after = after || n64kr_cup_selectable(i);
+    }
+    for (s32 i = 0; (i < index) && (index >= N64KR_FIRST_CUP); i++) {
+        before = before || n64kr_cup_selectable(i);
+    }
+    if (after) {
+        n64kr_menu_arrow(312, 78, 1);
+    }
+    if (before) {
+        n64kr_menu_arrow(7, 78, -1);
+    }
+}
+
 extern "C" void n64kr_cup_page_draw(void) {
+    cup_arrows();
     const CupDef* def = current_def();
     Cup* cup = (def != nullptr) ? GetWorld()->GetCurrentCup() : nullptr;
     if (cup == nullptr) {

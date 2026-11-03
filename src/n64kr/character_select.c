@@ -1,4 +1,6 @@
 #include <ctype.h>
+#include <stdio.h>
+#include <string.h>
 #include <libultraship.h>
 #include <defines.h>
 #include <sounds.h>
@@ -14,6 +16,7 @@
 
 #define GRID_PAGES 2
 #define GRID_CELLS 8
+#define ARROW_HALF 7 // menu arrow: half its height at the base, in pixels
 
 // Page 1, the DKR page: N64KR character per cell, -1 = empty.
 static const s32 sDkrPage[GRID_CELLS] = {
@@ -30,22 +33,91 @@ static s32 sCpuSeatStock[GRID_CELLS];
 static s32 sCpuSeatCharacter[GRID_CELLS];
 static s32 sCpuSeats = 0;
 
-// The DKR page's cells: face and blank nameplate from each character's mod
-// (tools/n64kr/blender_dkr_racer_hud.py, textures named after the hudName);
-// the name is printed over the plate.
-#define FACE(name) "__OTR__textures/player_selection/" name "_face_00"
-#define PLATE(name) "__OTR__textures/texture_tkmk00/texture_name_" name
-#define CELL_TEXTURES(name)                                                         \
-    { { { 0, (u64*) FACE(name), 64, 64, 0, 0, 0 }, { 0, NULL, 0, 0, 0, 0, 0 } },     \
-      { { 0, (u64*) PLATE(name), 64, 12, 0, 64, 0 }, { 0, NULL, 0, 0, 0, 0, 0 } } }
 #define DKR_CELLS 3
-static MenuTexture sCellTextures[DKR_CELLS][2][2] = { CELL_TEXTURES("diddy"), CELL_TEXTURES("banjo"),
-                                                      CELL_TEXTURES("conker") };
-static MkAnimation sCellFaceAnim[DKR_CELLS][2] = {
-    { { sCellTextures[0][0], 100 }, { NULL, 0 } },
-    { { sCellTextures[1][0], 100 }, { NULL, 0 } },
-    { { sCellTextures[2][0], 100 }, { NULL, 0 } },
-};
+
+// Blank nameplates from each character's mod (tools/n64kr/blender_dkr_racer_hud.py,
+// named after the hudName); the name is printed over the plate.
+#define PLATE(name)                                                                                  \
+    { { 0, (u64*) "__OTR__textures/texture_tkmk00/texture_name_" name, 64, 12, 0, 64, 0 },           \
+      { 0, NULL, 0, 0, 0, 0, 0 } }
+static MenuTexture sCellPlates[DKR_CELLS][2] = { PLATE("diddy"), PLATE("banjo"), PLATE("conker") };
+
+// Animated faces from each character's mod (tools/n64kr/blender_dkr_racer_faces.py,
+// <hudName>_face_NN, 256 px PNGs drawn in MK64's 64x64 face slot): 00 idle,
+// 01-02 blink (half shut, shut), 03-14 picked (DKR's horn taunt, turning to the
+// viewer), 15-22 lost (DKR's crash). Sequences and timing follow MK64's faces
+// (src/data/textures.c, e.g. Toad: 1-tick frames, idle 50, blink then 10).
+#define FACE_BLINK 1
+#define FACE_PICKED 3
+#define FACE_PICKED_FRAMES 12
+#define FACE_LOST 15
+#define FACE_LOST_FRAMES 8
+#define FACE_FRAMES 23
+#define FACE_HOLD 30000 // ticks: a last frame that stays up (sequences loop at their end)
+#define BLINK_END 3       // sequence index where each blink is over
+#define DOUBLE_BLINK_END 7
+
+typedef struct {
+    char path[FACE_FRAMES][64];
+    MenuTexture tex[FACE_FRAMES][2];
+    MkAnimation idle[2];
+    MkAnimation blink[BLINK_END + 2];
+    MkAnimation doubleBlink[DOUBLE_BLINK_END + 2];
+    MkAnimation picked[FACE_PICKED_FRAMES + 1];
+    MkAnimation hold[2];
+    MkAnimation unpick[FACE_PICKED_FRAMES + 1];
+    MkAnimation lost[FACE_LOST_FRAMES + 1];
+} DkrFaces;
+
+static DkrFaces sFaces[DKR_CELLS];
+static s32 sFacesReady = false;
+
+static void face_frame(MkAnimation* step, DkrFaces* faces, s32 frame, s32 ticks) {
+    step->mk64Texture = faces->tex[frame];
+    step->frame_length = ticks;
+}
+
+static void build_faces(void) {
+    static const s32 blink[][2] = { { 1, 2 }, { 2, 3 }, { 1, 2 }, { 0, 10 } };
+    static const s32 doubleBlink[][2] = { { 1, 2 }, { 2, 3 }, { 1, 2 }, { 0, 3 },
+                                          { 1, 2 }, { 2, 3 }, { 1, 2 }, { 0, 10 } };
+    s32 cell, i;
+
+    if (sFacesReady) {
+        return;
+    }
+    memset(sFaces, 0, sizeof(sFaces)); // zero entries end each list
+    for (cell = 0; cell < DKR_CELLS; cell++) {
+        const N64krCharacter* c = n64kr_get_character(sDkrPage[cell]);
+        DkrFaces* f = &sFaces[cell];
+
+        for (i = 0; i < FACE_FRAMES; i++) {
+            snprintf(f->path[i], sizeof(f->path[i]), "__OTR__textures/player_selection/%s_face_%02d",
+                     ((c != NULL) && (c->hudName != NULL)) ? c->hudName : "diddy", (int) i);
+            f->tex[i][0].textureData = (u64*) f->path[i];
+            f->tex[i][0].width = 64;
+            f->tex[i][0].height = 64;
+        }
+        face_frame(&f->idle[0], f, 0, 50);
+        for (i = 0; i <= BLINK_END; i++) {
+            face_frame(&f->blink[i], f, blink[i][0], blink[i][1]);
+        }
+        for (i = 0; i <= DOUBLE_BLINK_END; i++) {
+            face_frame(&f->doubleBlink[i], f, doubleBlink[i][0], doubleBlink[i][1]);
+        }
+        for (i = 0; i < FACE_PICKED_FRAMES; i++) {
+            face_frame(&f->picked[i], f, FACE_PICKED + i, 2);
+            face_frame(&f->unpick[i], f, FACE_PICKED + FACE_PICKED_FRAMES - 1 - i, 1);
+        }
+        face_frame(&f->hold[0], f, FACE_PICKED + FACE_PICKED_FRAMES - 1, FACE_HOLD);
+        // Lost: the crash animation backwards, upright to slumped, and stay slumped.
+        for (i = 0; i < FACE_LOST_FRAMES; i++) {
+            face_frame(&f->lost[i], f, FACE_LOST + FACE_LOST_FRAMES - 1 - i, 2);
+        }
+        f->lost[FACE_LOST_FRAMES - 1].frame_length = FACE_HOLD;
+    }
+    sFacesReady = true;
+}
 
 // DKR page cell of a character; -1 if it has none.
 static s32 dkr_cell(s32 characterId) {
@@ -59,14 +131,32 @@ static s32 dkr_cell(s32 characterId) {
     return -1;
 }
 
-MkAnimation* n64kr_char_face(s32 characterId, MkAnimation* stock) {
+static MkAnimation* face_anim(s32 cell, s32 which) {
+    build_faces();
+    switch (which) {
+        case N64KR_FACE_PICKED:
+            return sFaces[cell].picked;
+        case N64KR_FACE_HOLD:
+            return sFaces[cell].hold;
+        case N64KR_FACE_LOST:
+            return sFaces[cell].lost;
+        default:
+            return sFaces[cell].idle;
+    }
+}
+
+MkAnimation* n64kr_char_face(s32 characterId, s32 which, MkAnimation* stock) {
     s32 cell = dkr_cell(characterId);
-    return (cell >= 0) ? sCellFaceAnim[cell] : stock;
+    return (cell >= 0) ? face_anim(cell, which) : stock;
+}
+
+s32 n64kr_char_face_picked_end(s32 characterId, s32 stock) {
+    return (dkr_cell(characterId) >= 0) ? (FACE_PICKED_FRAMES - 1) : stock;
 }
 
 MenuTexture* n64kr_char_nameplate(s32 characterId, MenuTexture* stock) {
     s32 cell = dkr_cell(characterId);
-    return (cell >= 0) ? sCellTextures[cell][1] : stock;
+    return (cell >= 0) ? sCellPlates[cell] : stock;
 }
 
 void n64kr_char_nameplate_label(s32 characterId, s32 column, s32 row) {
@@ -81,8 +171,9 @@ void n64kr_char_nameplate_label(s32 characterId, s32 column, s32 row) {
         label[i] = (char) toupper((unsigned char) c->name[i]);
     }
     label[i] = '\0';
+    // On the plate (it spans row + 0x40 .. 0x4C; the text's y is its foot).
     set_text_color(TEXT_YELLOW);
-    print_text1_center_mode_1(column + 0x20, row + 0x40, label, 0, 0.45f, 0.45f);
+    print_text1_center_mode_1(column + 0x20, row + 0x4A, label, 0, 0.45f, 0.45f);
 }
 
 // Character on (page, cell 1..8); -1 = nothing there.
@@ -186,34 +277,153 @@ s32 n64kr_grid_commit(s32 playerIdx, s32 gridId) {
     return sCharacterGridOrder[gridId - 1];
 }
 
+// A DKR cell's face, run the way func_800AA69C (src/menu_items.c) runs a stock
+// cell's: idle with random single and double blinks; the picked animation when
+// the player on the cell confirms, then held; played backwards when they back
+// out (from where it got to, if they change their mind half way).
+static void dkr_face_update(MenuItem* item, s32 cell) {
+    const s32 end = FACE_PICKED_FRAMES - 1;
+    DkrFaces* f = &sFaces[cell];
+    s32 index = item->D_8018DEE0_index;
+    s32 at = D_8018DEE0[index].sequenceIndex;
+    s32 player = func_800AAFCC(cell);
+    s32 picked = (player >= 0) && gCharacterGridIsSelected[player];
+    s32 unpicked = (player >= 0) && !gCharacterGridIsSelected[player];
+    s32 roll;
+
+    switch (item->subState) {
+        case 0:
+            if (picked) {
+                item->subState = 1;
+                func_8009A594(index, 0, f->picked);
+            } else {
+                roll = random_int(200);
+                if (roll >= 198) {
+                    item->subState = 4;
+                    func_8009A594(index, 0, f->blink);
+                } else if (roll >= 197) {
+                    item->subState = 5;
+                    func_8009A594(index, 0, f->doubleBlink);
+                }
+            }
+            break;
+        case 1:
+            if (at >= end) {
+                item->subState = 2;
+                func_8009A594(index, 0, f->hold);
+            } else if (unpicked) {
+                item->subState = 3;
+                func_8009A594(index, end - at, f->unpick);
+            }
+            break;
+        case 2:
+            if (unpicked) {
+                item->subState = 3;
+                func_8009A594(index, 0, f->unpick);
+            }
+            break;
+        case 3:
+            if (at >= end) {
+                item->subState = 0;
+                func_8009A594(index, 0, f->idle);
+            } else if (picked) {
+                item->subState = 1;
+                func_8009A594(index, end - at, f->picked);
+            }
+            break;
+        case 4:
+        case 5:
+            if (picked) {
+                item->subState = 1;
+                func_8009A594(index, 0, f->picked);
+            } else if (at >= ((item->subState == 4) ? BLINK_END : DOUBLE_BLINK_END)) {
+                item->subState = 0;
+                func_8009A594(index, 0, f->idle);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
 s32 n64kr_grid_cell_update(MenuItem* item, s32 cell) {
+    s32 dkrCell;
+
     if ((cell < 0) || (cell >= GRID_CELLS)) {
         return 0;
     }
+    dkrCell = (sViewPage == 1) && (cell < DKR_CELLS) && (sDkrPage[cell] >= 0);
     if (sCellShownPage[cell] != sViewPage) {
         sCellShownPage[cell] = sViewPage;
+        item->subState = 0; // restart the idle/blink state machine
         if (sViewPage == 0) {
-            item->subState = 0; // restart the stock idle/blink state machine
             func_8009A594(item->D_8018DEE0_index, 0, D_800E8360[cell]);
-        } else if ((sViewPage == 1) && (cell < DKR_CELLS) && (sDkrPage[cell] >= 0)) {
-            func_8009A594(item->D_8018DEE0_index, 0, sCellFaceAnim[cell]);
+        } else if (dkrCell) {
+            build_faces();
+            func_8009A594(item->D_8018DEE0_index, 0, sFaces[cell].idle);
         }
+    } else if (dkrCell) {
+        dkr_face_update(item, cell);
     }
     return sViewPage != 0;
 }
 
+void n64kr_menu_arrow(s32 x, s32 y, s32 dir) {
+    // Bob a couple of pixels toward the way it points, about twice a second.
+    s32 bob = ((gGlobalTimer >> 4) & 1) ? 2 * dir : 0;
+    s32 tip = x + bob;
+    s32 i;
+
+    // One column per pixel (draw_box_fill's corners are inclusive), 1 px at
+    // the tip growing 2 px per column: a black triangle one column longer and
+    // 1 px bigger all round, yellow inside it.
+    for (i = 0; i <= ARROW_HALF + 1; i++) {
+        s32 col = tip - (dir * i);
+        gDisplayListHead = draw_box_fill(gDisplayListHead, col, y - i, col, y + i, 0, 0, 0, 255);
+    }
+    for (i = 1; i <= ARROW_HALF; i++) {
+        s32 col = tip - (dir * i);
+        gDisplayListHead = draw_box_fill(gDisplayListHead, col, y - i + 1, col, y + i - 1, 255, 220, 0, 255);
+    }
+}
+
+// Arrows in the margins beside the grid (cells span x 24..295, rows y 63..221),
+// pointing to the other page with its name under them, while players are
+// choosing: the DKR page is otherwise only found by pushing past the edge.
+static void page_arrows(void) {
+    const s32 y = 142; // between the two rows
+    if (gPlayerSelectMenuSelection != PLAYER_SELECT_MENU_MAIN) {
+        return;
+    }
+    if (sViewPage + 1 < GRID_PAGES) {
+        n64kr_menu_arrow(312, y, 1);
+        set_text_color(TEXT_YELLOW);
+        print_text1_center_mode_1(306, y + 0x16, "DKR", 0, 0.45f, 0.45f);
+    }
+    if (sViewPage > 0) {
+        n64kr_menu_arrow(7, y, -1);
+        set_text_color(TEXT_BLUE);
+        print_text1_center_mode_1(13, y + 0x16, "MK64", 0, 0.45f, 0.45f);
+    }
+}
+
 s32 n64kr_grid_cell_draw(MenuItem* item, s32 cell) {
-    if (cell == 0) { // one label per frame: the page being shown
+    if (cell == 0) { // once per frame: the page being shown (under the banner), arrows to the others
         set_text_color((sViewPage == 0) ? TEXT_BLUE : TEXT_YELLOW);
-        print_text1_center_mode_1(0xA0, 0x1C, (sViewPage == 0) ? "MK64" : "DKR", 0, 0.5f, 0.5f);
+        print_text1_center_mode_1(0xA0, 0x3A, (sViewPage == 0) ? "MK64" : "DKR", 0, 0.5f, 0.5f);
+        page_arrows();
     }
     if (sViewPage == 0) {
         return 0;
     }
     if ((cell < DKR_CELLS) && (sDkrPage[cell] >= 0)) {
-        func_800A12BC(item, sCellTextures[cell][1]);
+        func_800A12BC(item, sCellPlates[cell]);
         func_8009A76C(item->D_8018DEE0_index, item->column, item->row, item->param1);
-        n64kr_char_nameplate_label(sDkrPage[cell], item->column, item->row);
+        // States 1 and 3 fade the cell out (func_800A12BC), as unpicked cells do
+        // once everyone has chosen: no name floating where it was.
+        if ((item->state != 1) && (item->state != 3)) {
+            n64kr_char_nameplate_label(sDkrPage[cell], item->column, item->row);
+        }
     }
     return 1; // empty cells draw nothing
 }

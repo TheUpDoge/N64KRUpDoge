@@ -2,7 +2,9 @@
 
 Writes, under <out dir>/<object>/ (ROM data: keep under build/, never commit):
   <object>.gltf/.bin + textures/   body model (highest detail), DKR units, Y up;
-                                    animation 0 (driving) frames as morph targets
+                                    animation 0 (driving) frames as morph targets,
+                                    plus horn and crash frames (EXTRA_ANIMS);
+                                    later eye frames as dkr_texNNNN_fK.png
   wheel_<part>_<frame>.png          vehicle part sprite frames (wheel spin)
   <object>_racer.json               wheel attach points, part scales, sprite anchors
 
@@ -38,6 +40,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # python -I drop
 import dkr_level_to_gltf as dkr  # noqa: E402
 
 BHV_RACER = 1
+# Extra animations exported as shape keys (animation index: frames used),
+# from DKR's racer actions (src/racer.c func_80052988 calls): 4 = horn (Z
+# button taunt, 48 frames), 3 = crash (32 frames).
+EXTRA_ANIMS = {4: 48, 3: 32}
+EXTRA_ANIM_STEP = 4
 
 
 def racer_headers(rom):
@@ -164,15 +171,39 @@ def export(rom, object_name, out_root):
     racer = load_racer(rom, object_name)
     groups, textures, frames = racer["groups"], racer["textures"], racer["anim_frames"]
 
-    # Driving animation as morph targets (shape keys): one per animation frame,
-    # each the offset of every corner from the base pose.
+    # Morph targets (shape keys), each the offset of every corner from the
+    # base pose: every frame of the driving animation, and every
+    # EXTRA_ANIM_STEP-th frame of the extra animations (select-screen faces,
+    # blender_dkr_racer_faces.py).
+    named = [(f"anim0_f{i:02d}", f) for i, f in enumerate(frames)]
+    extra = {}
+    for anim, length in EXTRA_ANIMS.items():
+        anim_frames = animation_frames(rom, racer["model_id"], racer["model"], anim)[:length]
+        picked = list(range(0, len(anim_frames), EXTRA_ANIM_STEP))
+        named += [(f"anim{anim}_f{i:02d}", anim_frames[i]) for i in picked]
+        extra[str(anim)] = picked
     targets = {}
     for key, corners in groups.items():
         targets[key] = [[tuple(f[v][k] - c[k] for k in range(3)) if v in f else (0.0, 0.0, 0.0)
-                         for v, c in zip(racer["corner_vertex"][key], corners)] for f in frames]
+                         for v, c in zip(racer["corner_vertex"][key], corners)] for _, f in named]
     out_dir = os.path.join(out_root, object_name)
-    dkr.write_gltf(rom, out_dir, object_name, groups, textures, targets if frames else None,
-                   [f"anim0_f{i:02d}" for i in range(len(frames))])
+    dkr.write_gltf(rom, out_dir, object_name, groups, textures, targets if named else None,
+                   [name for name, _ in named])
+
+    # Later frames of animated textures (the eyes: open .. shut), next to the
+    # first frame write_gltf saved.
+    tex3d, tex3d_table = rom.section("ASSET_TEXTURES_3D"), rom.table("ASSET_TEXTURES_3D_TABLE")
+    texture_frames = {}
+    for info in textures:
+        raw = tex3d[tex3d_table[info["id"]]:tex3d_table[info["id"] + 1]]
+        count = dkr.texture_frames(raw)
+        if count < 2 or str(info["id"]) in texture_frames:
+            continue
+        texture_frames[str(info["id"])] = count
+        for frame in range(1, count):
+            w, h, rgba, _flags, _fmt = dkr.decode_texture(raw, frame)
+            with open(os.path.join(out_dir, "textures", f"dkr_tex{info['id']:04d}_f{frame}.png"), "wb") as fh:
+                fh.write(dkr.png_bytes(w, h, rgba))
 
     wheels, written = [], set()
     for wheel in racer["wheels"]:
@@ -193,6 +224,8 @@ def export(rom, object_name, out_root):
     info = {"object": object_name, "model": racer["model_id"], "object_scale": racer["header"]["scale"],
             "drive_animation": {"frames": len(frames), "straight": 40, "full_right": 0, "full_left": 73,
                                 "shape_key": "anim0_fNN"},
+            "extra_animations": {"frames": extra, "shape_key": "anim<A>_fNN", "4": "horn", "3": "crash"},
+            "texture_frames": texture_frames,
             "units": "DKR model units, Y up (same as the glTF)", "wheels": wheels}
     with open(os.path.join(out_dir, f"{object_name}_racer.json"), "w") as f:
         json.dump(info, f, indent=1)

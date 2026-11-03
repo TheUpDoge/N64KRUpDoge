@@ -6241,7 +6241,7 @@ void add_menu_item(s32 type, s32 column, s32 row, s8 priority) {
             } else {
                 var_a0 = D_800E8320[temp_a1];
             }
-            var_a0 = n64kr_char_face(D_802874D8.unk1E, var_a0); // N64KR HOOK: a DKR racer's own face
+            var_a0 = n64kr_char_face(D_802874D8.unk1E, (var_v0 != 0) ? N64KR_FACE_LOST : N64KR_FACE_IDLE, var_a0); // N64KR HOOK: a DKR racer's own face
              var_ra->D_8018DEE0_index = func_8009A478(var_a0, 0);
             load_menu_img_comp_type(D_800E7D54[temp_a1], LOAD_MENU_IMG_TKMK00_ONCE);
             break;
@@ -12701,7 +12701,7 @@ void func_800AF270(MenuItem* arg0) {
                 } else {
                     arg0->state = 3;
                     func_8009A640(arg0->D_8018DEE0_index, 0, sp30,
-                                  n64kr_char_face(sp30, gCharacterCelebrateAnimation[temp_v0])); // N64KR HOOK
+                                  n64kr_char_face(sp30, N64KR_FACE_PICKED, gCharacterCelebrateAnimation[temp_v0])); // N64KR HOOK
                     func_800CA0B8();
                     func_800C90F4(0U, (n64kr_char_voice_line(sp30) * 0x10) + SOUND_ARG_LOAD(0x29, 0x00, 0x80, 0x07)); // N64KR HOOK
                     func_800CA0A0();
@@ -12709,8 +12709,8 @@ void func_800AF270(MenuItem* arg0) {
             }
             break;
         case 3:
-            if (D_8018DEE0[arg0->D_8018DEE0_index].sequenceIndex >= D_800E8440[temp_v0]) {
-                func_8009A640(arg0->D_8018DEE0_index, 0, sp30, n64kr_char_face(sp30, D_800E83A0[temp_v0])); // N64KR HOOK
+            if (D_8018DEE0[arg0->D_8018DEE0_index].sequenceIndex >= n64kr_char_face_picked_end(sp30, D_800E8440[temp_v0])) { // N64KR HOOK
+                func_8009A640(arg0->D_8018DEE0_index, 0, sp30, n64kr_char_face(sp30, N64KR_FACE_HOLD, D_800E83A0[temp_v0])); // N64KR HOOK
                 arg0->state = 4;
             }
             break;

@@ -22,7 +22,9 @@ All game content comes from **your own ROMs** at build or run time. This reposit
 | Character registry | Racers are registry entries (`src/n64kr/character.c`): each names which MK64 character it borrows voice, HUD, size, AI and stats from until it has its own, plus optional own assets. MK64's 8 map to themselves, so the game is unchanged. Id 8 stays MK64's "no character" marker; new characters start at 9. | Tested in game |
 | **Diddy Kong** | A full new character from DKR: kart sprites rendered from his DKR 3D model (driving pose, steering wheels), portrait, minimap icon, name, his own DKR voice clips, a select screen cell, and CPU appearances in Grand Prix. | Tested in game |
 | **Banjo and Conker** | Two more DKR racers made the same way as Diddy (sprites, HUD, DKR voices incl. "I'm Banjo"/"I'm Conker", 3D models), on the DKR select page next to Diddy; DKR racers nobody picked join as CPUs; their own face on the cup award screen. | Tested in game; fixes from the first test (model textures, Banjo size, 3D vs sprite depth, award face, voice lists) built, retest pending |
-| Select screen pages | Push past the edge of the character grid to turn to the **DKR page**. MK64's 8-cell layout and menu code stay as they are; a page layer maps (page, cell) to a character. | Tested in game |
+| Select screen pages | Push past the edge of the character grid to turn to the **DKR page**; pulsing arrows in the margins (with the other page's name) show the way, and the cup select gets arrows to the N64KR cups. MK64's 8-cell layout and menu code stay as they are; a page layer maps (page, cell) to a character. The Kart/Hover label sits at the top of the cell as "R KART". | Pages tested in game; arrows and label checked in screenshots, not yet by the user |
+| DKR faces | Animated select faces for the DKR racers at 4x MK64's detail: idle with blinks (DKR's eye frames), a picked animation (DKR's horn taunt, turning to face you), a lost one (DKR's crash) on the cup award screen; race portraits at 4x too. | Checked in screenshots; retest pending |
+| Far racers | Racers stay drawn out to the track's far plane instead of MK64's ~640 units ahead (they popped out on N64KR's long tracks). CVar `gN64KR.FarRacers` (default 1). | Built; retest pending |
 | **Dam Speedway** (GoldenEye) | A banked oval built over the reservoir of GoldenEye's Dam level, from your GoldenEye ROM: the level's scenery, Dam's own asphalt and striped walls, banked turns, water rescue. | Tested in game |
 | **Dam Speedway B** | Two Dams facing each other, joined across the water: a longer oval with a dam wall behind each turn. | Tested in game |
 | GoldenEye hazards | Oil drums on the road explode when touched (chain reactions, racers tumble); two of Dam's own watchtowers per track, each with a Dam guard (real GoldenEye model and animation) who raises his KF7 and fires bursts at passing racers. | Tested in game |
@@ -50,7 +52,8 @@ All tools read **your own ROM** and write into `build/` (never committed). Pytho
 | `dkr_track_scene.py` | Track mod → `scene.json`: item boxes, minimap, sky colours. |
 | `dkr_racer_to_gltf.py` | DKR ROM → a DKR racer (e.g. `diddycar`) as glTF with its driving animation as shape keys, plus wheel sprite frames. Decodes DKR's vertex animation format. |
 | `blender_dkr_racer_sprites.py` | Racer glTF → the 1188 MK64 kart sprite frames (321 angles × wheel spin), rendered in SpaghettiKart's kart setup scene; packaged as a texture pack over a stock character or as a new character's folder. |
-| `blender_dkr_racer_hud.py` | Racer glTF → race portrait, minimap icons, select screen face and nameplate. |
+| `blender_dkr_racer_hud.py` | Racer glTF → race portrait (4x), minimap icons and blank nameplate. |
+| `blender_dkr_racer_faces.py` | Racer glTF → 23 animated select faces (idle, blink, picked, lost) as 256 px PNGs for MK64's 64x64 face slot. |
 | `dkr_voice_to_wav.py` | DKR ROM → a racer's voice clips as WAV (parses DKR's sound bank, decodes N64 VADPCM). |
 | `dkr_racer_to_model.py` | DKR ROM → an in-game 3D model: libultraship display lists for each driving pose, steering front wheels, `model.json`. |
 
@@ -85,6 +88,7 @@ tools/n64kr-rs/target/release/n64kr ge-audio "<GoldenEye ROM>.z64" build/x64/mod
 python -I tools/n64kr/dkr_racer_to_gltf.py "<DKR ROM>.z64" diddycar build/dkr_racers
 blender -b docs/MK64_Spaghetti_Adjusted_Kart_Setup.blend --python tools/n64kr/blender_dkr_racer_sprites.py -- build/dkr_racers/diddycar build/x64/mods/n64kr-dkr-diddy diddy_kart
 blender -b --python tools/n64kr/blender_dkr_racer_hud.py -- build/dkr_racers/diddycar build/x64/mods/n64kr-dkr-diddy diddy build/x64/mk64.o2r toad 248,120,0
+blender -b --python tools/n64kr/blender_dkr_racer_faces.py -- build/dkr_racers/diddycar build/x64/mods/n64kr-dkr-diddy diddy
 python -I tools/n64kr/dkr_voice_to_wav.py "<DKR ROM>.z64" diddy build/x64/mods/n64kr-dkr-diddy
 python -I tools/n64kr/dkr_racer_to_model.py "<DKR ROM>.z64" diddycar diddy build/x64/mods/n64kr-dkr-diddy
 ```
@@ -102,7 +106,7 @@ The full render takes a few minutes; `--preview` renders 12 sample frames. Banjo
 | `vehicle_select.{h,c}` | Kart/Hover choice on the select screen. |
 | `character.{h,c}` | Character registry and accessors (voice, sprites, HUD, body, AI, stats, names). |
 | `character_assets.cpp` | Kart sprite and HUD texture paths for characters with their own assets. |
-| `character_select.{h,c}` | Select screen pages, page characters, CPU roster and GP rival handling. |
+| `character_select.{h,c}` | Select screen pages and their arrows, page characters and their animated faces (select and cup award), CPU roster and GP rival handling. |
 | `voice.{h,cpp}` | Own voice clips, played through the port's audio mixer with distance falloff. |
 | `racer3d.{h,c}`, `racer3d_model.cpp` | Real-time 3D racers. |
 | `ge_hazards.{h,cpp}` | GoldenEye barrels and guards as track actors (`n64kr:ge_barrel`, `n64kr:ge_guard` in scene.json). |

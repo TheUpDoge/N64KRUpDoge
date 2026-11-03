@@ -9,17 +9,19 @@ e.g.
 
 Writes into <mod dir>/textures/common_data/ (PNG + stub resource each, see
 blender_dkr_racer_sprites.py for why new paths need a stub):
-  common_texture_portrait_<hud name>      32x32: the racer's head (driving pose,
-                                          3/4 view) inside the template's frame
+  common_texture_portrait_<hud name>      the racer's head (driving pose, 3/4
+                                          view) inside the template's frame;
+                                          128x128 PNG for MK64's 32x32 slot
+                                          (4x detail, see blender_dkr_racer_faces.py)
   common_texture_minimap_kart_<hud name>  8x8: template kart icon recoloured
   common_texture_minimap_<hud name>       8x8: template progress dot
-and into <mod dir>/textures/player_selection|texture_tkmk00/:
-  diddy_face_00 (named <hud name>)        64x64: select screen face
+and into <mod dir>/textures/texture_tkmk00/:
   texture_name_<hud name>                 64x12: blank select nameplate (the
                                           page draws the name over it in text)
 The engine finds the first through the registry's hudName
-(src/n64kr/character.c); the select page draws the last two
-(src/n64kr/character_select.c).
+(src/n64kr/character.c); the select page draws the nameplate
+(src/n64kr/character_select.c). Select-screen faces come from
+blender_dkr_racer_faces.py.
 Built from ROM data: keep under build/, never commit.
 """
 import math
@@ -175,31 +177,19 @@ PORTRAIT_RAISE = 1.0 / 3.0 - 1.0 / 8.0
 rw, rh, src = render("portrait_render.png", PORTRAIT_RAISE)
 
 
-def sample(x, y):  # box filter SUPERSAMPLE x SUPERSAMPLE, premultiplied
-    acc = [0.0, 0.0, 0.0, 0.0]
-    for dy in range(SUPERSAMPLE):
-        for dx in range(SUPERSAMPLE):
-            sx, sy = x * SUPERSAMPLE + dx, rh - 1 - (y * SUPERSAMPLE + dy)
-            i = (sy * rw + sx) * 4
-            a = src[i + 3]
-            for k in range(3):
-                acc[k] += src[i + k] * a
-            acc[3] += a
-    n = SUPERSAMPLE * SUPERSAMPLE
-    a = acc[3] / n
-    return [acc[k] / acc[3] if acc[3] else 0.0 for k in range(3)] + [a]
-
-
+# The portrait PNG is SUPERSAMPLE x MK64's size: the stock frame scaled up
+# pixel for pixel, the render at full size inside it (black behind, as stock).
 tlut = o2r_texture(f"textures/common_data/common_tlut_portrait_{template}")[3]
 w, h, frame_px = decode(f"textures/common_data/common_texture_portrait_{template}", tlut)
-portrait = [list(p) for p in frame_px]
-for y in range(INNER):
-    for x in range(INNER):
-        r, g, b, a = sample(x, y)
-        dst = portrait[(y + FRAME) * w + x + FRAME]
-        bg = [0, 0, 0]  # stock portraits: black inside the frame
-        dst[:] = [round((c * a + bg[k] / 255 * (1 - a)) * 255) for k, c in enumerate((r, g, b))] + [255]
-write(f"common_texture_portrait_{hud_name}", w, h, portrait)
+hw, hh = w * SUPERSAMPLE, h * SUPERSAMPLE
+portrait = [list(frame_px[(y // SUPERSAMPLE) * w + x // SUPERSAMPLE]) for y in range(hh) for x in range(hw)]
+for y in range(INNER * SUPERSAMPLE):
+    for x in range(INNER * SUPERSAMPLE):
+        i = ((rh - 1 - y) * rw + x) * 4  # render rows run bottom first
+        a = src[i + 3]
+        dst = portrait[(y + FRAME * SUPERSAMPLE) * hw + x + FRAME * SUPERSAMPLE]
+        dst[:] = [round(src[i + k] * a * 255) for k in range(3)] + [255]
+write(f"common_texture_portrait_{hud_name}", hw, hh, portrait)
 
 # --- minimap icons
 template_kart = {"dk": "donkey_kong"}.get(template, template)
@@ -216,28 +206,6 @@ w, h, dot = decode(f"textures/common_data/common_texture_minimap_{template_dot}"
 write(f"common_texture_minimap_{hud_name}", w, h, dot)
 print(f"[n64kr] HUD textures for '{hud_name}' in {out_dir}")
 
-# --- select screen face: the head centred, 64x64, transparent background
-FACE = 64
-rw, rh, src = render("face_render.png")
-face_dir = os.path.join(mod_dir, "textures", "player_selection")
-os.makedirs(face_dir, exist_ok=True)
-face = []  # whole render box-filtered to 64x64 (sizes need not divide)
-for y in range(FACE):
-    for x in range(FACE):
-        acc, n = [0.0, 0.0, 0.0, 0.0], 0
-        for sy in range(y * rh // FACE, max(y * rh // FACE + 1, (y + 1) * rh // FACE)):
-            for sx in range(x * rw // FACE, max(x * rw // FACE + 1, (x + 1) * rw // FACE)):
-                i = ((rh - 1 - sy) * rw + sx) * 4
-                alpha = src[i + 3]
-                for k in range(3):
-                    acc[k] += src[i + k] * alpha
-                acc[3] += alpha
-                n += 1
-        rgb = [acc[k] / acc[3] if acc[3] else 0.0 for k in range(3)]
-        face.append([round(c * 255) for c in rgb] + [round(acc[3] / n * 255)])
-out_dir = face_dir
-write(f"{hud_name}_face_00", FACE, FACE, face)
-
 # --- nameplate: the stock plate with its letters erased (the plate's
 # gradient runs horizontally; row 10 is letter-free, so it is the background
 # of every column). The select page prints the name over it in menu text
@@ -253,4 +221,4 @@ for y in range(1, plate_h - 1):
 out_dir = os.path.join(mod_dir, "textures", "texture_tkmk00")
 os.makedirs(out_dir, exist_ok=True)
 write(f"texture_name_{hud_name}", plate_w, plate_h, base)
-print(f"[n64kr] select face and blank nameplate written")
+print(f"[n64kr] blank nameplate written")

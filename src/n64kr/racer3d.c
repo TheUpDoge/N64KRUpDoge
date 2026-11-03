@@ -7,6 +7,9 @@
 #include "render_player.h"
 #include "racing/math_util.h"
 #include "engine/Matrix.h"
+#include "engine/tracks/Track.h"
+#include "port/Game.h"
+#include "spawn_players.h"
 #include "n64kr/character.h"
 #include "n64kr/racer3d.h"
 
@@ -64,6 +67,41 @@ static const N64krRacerModel* model_for(const Player* player) {
 static f32 visual_turn(const Player* player) {
     f32 turn = (f32) player->unk_0C0 / FULL_TURN;
     return (turn > 1.0f) ? 1.0f : ((turn < -1.0f) ? -1.0f : turn);
+}
+
+// MK64 draws a racer only inside a triangle ahead of the camera
+// (check_player_camera_collision, render_player.c): far corners D_80165578
+// units out at +-var_v0 of the camera's yaw (1P 0x293C = 58 deg, 2P 0x3058 =
+// 68 deg, 3P/4P 0x1FFE = 45 deg), so straight ahead it ends at D_80165578 x
+// cos(angle): 1200 x 0.53 = about 640 units in a 1P race (func_80039AE4).
+// N64KR's tracks are drawn to 6800 (FarPersp) and much longer than MK64's, so
+// racers vanished well ahead of the player (user playtest). Grow the triangle
+// until it reaches the far plane straight ahead; never shrink MK64's.
+void n64kr_racer_draw_distance(void) {
+    Properties* props = CM_GetProps();
+    u16 angle;
+    f32 distance;
+
+    if (!CVarGetInteger("gN64KR.FarRacers", 1) || (props == NULL)) {
+        return;
+    }
+    switch (gActiveScreenMode) {
+        case SCREEN_MODE_1P:
+            angle = 0x293C;
+            break;
+        case SCREEN_MODE_2P_SPLITSCREEN_HORIZONTAL:
+        case SCREEN_MODE_2P_SPLITSCREEN_VERTICAL:
+            angle = 0x3058;
+            break;
+        default:
+            angle = 0x1FFE;
+            break;
+    }
+    distance = props->FarPersp / coss(angle);
+    distance = (distance > 32000.0f) ? 32000.0f : distance;
+    if (distance > D_80165578) {
+        D_80165578 = (s16) distance;
+    }
 }
 
 void n64kr_racer3d_set_camera(Vec3f cameraPos) {

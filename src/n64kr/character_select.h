@@ -46,6 +46,11 @@ s32 n64kr_grid_commit(s32 playerIdx, s32 gridId);
 s32 n64kr_grid_cell_update(MenuItem* item, s32 cell);
 s32 n64kr_grid_cell_draw(MenuItem* item, s32 cell);
 
+// A small pulsing yellow arrow with a black outline, tip at (x, y), pointing
+// right (dir 1) or left (-1): shows where more menu pages are (the grid's
+// pages here, the cup select's N64KR cups in n64kr/cups.cpp).
+void n64kr_menu_arrow(s32 x, s32 y, s32 dir);
+
 // Whether this player's cursor (and cell highlight) is on the page being
 // shown. From the cursor draw and func_800AAFCC (src/menu_items.c).
 s32 n64kr_grid_player_on_view(s32 playerIdx);
@@ -74,10 +79,13 @@ s32 n64kr_rival_character(s32 stockId);
 
 // The cup award screen's portrait (MENU_ITEM_TYPE_130 and func_800AF270,
 // src/menu_items.c) shows the winner's select-screen face and nameplate. A
-// DKR page character has one face (no celebrate / defeat animation) and a
-// blank plate with the name printed over it, as on its cell; `stock` is
-// returned for everyone else.
-MkAnimation* n64kr_char_face(s32 characterId, MkAnimation* stock);
+// DKR page character has its own animated faces (idle, picked = celebrate,
+// its held last frame, lost = defeat) and a blank plate with the name printed
+// over it, as on its cell; `stock` is returned for everyone else.
+enum { N64KR_FACE_IDLE, N64KR_FACE_PICKED, N64KR_FACE_HOLD, N64KR_FACE_LOST };
+MkAnimation* n64kr_char_face(s32 characterId, s32 which, MkAnimation* stock);
+// Sequence index where the picked animation ends (D_800E8440 for stock faces).
+s32 n64kr_char_face_picked_end(s32 characterId, s32 stock);
 MenuTexture* n64kr_char_nameplate(s32 characterId, MenuTexture* stock);
 void n64kr_char_nameplate_label(s32 characterId, s32 column, s32 row);
 

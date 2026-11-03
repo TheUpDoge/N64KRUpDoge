@@ -30,6 +30,7 @@
 #include "port/Game.h"
 #include "n64kr/vehicle_profile.h" // N64KR HOOK
 #include "n64kr/character_select.h" // N64KR HOOK
+#include "n64kr/racer3d.h" // N64KR HOOK
 
 f32 D_80165210[8];
 f32 D_80165230[8];
@@ -484,6 +485,7 @@ void func_80039AE4(void) {
             }
             break;
     }
+    n64kr_racer_draw_distance(); // N64KR HOOK: racers visible out to the track's far plane
 }
 
 // typedef struct {

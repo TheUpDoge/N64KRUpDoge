@@ -2,7 +2,7 @@
 
 Project: N64 Kart Racing (N64KR)
 Date: 2026-11-02
-Status: tested in game (first round); fixes built, retest pending
+Status: tested in game (two rounds); third round of changes built, retest pending
 
 ## Goal (user)
 "We should maybe add a new character or 2 from diddy kong to see if the character select and game can accommodate it."
@@ -29,3 +29,14 @@ Reported, and what was done:
 | Cup award screen showed Toad when Banjo won | The award portrait (MENU_ITEM_TYPE_130, `func_800AF270`) used the `hud` character's (Toad's) face animations and nameplate. | `n64kr_char_face` / `n64kr_char_nameplate` / `n64kr_char_nameplate_label` give a DKR page character its select face and plate with the name printed over it (N64KR HOOKs in `menu_items.c`). |
 | Banjo "may have made the wrong" sound landing a shell on someone | DKR fills Banjo's 8 + 8 positive/negative voice slots from fewer recordings, crossing lists: his positive2 is his "woah", positive5 = negative4, negative1 = "guh-huh"; Conker's positive7 = negative2 [VERIFIED: sound table bites]. N64KR plays the positive list when the racer hits someone. | `dkr_voice_to_wav.py crossed_clips` keeps each recording once per list, keeps negative recordings out of the positive list (unless also a laugh line) and laughs out of the negative list. Banjo: positive = yahoo, guh-huh and two more; no "woah". `voice.cpp` picks evenly among the clips present and not the same one twice in a row. |
 | Small graphical glitch on the select page switching from Diddy to Banjo | Not found from the code: cell update/draw, face animation (`func_8009A878` loops to frame 0) and nameplate loading (the port draws textures straight from their paths) change nothing when the cursor moves. | Open: needs a screenshot or description. |
+
+## Second in-game test (user, 2026-11-02) [VERIFIED: user report]
+"Seems to be better", the layer error is gone, and so is the select page glitch. Asked for: animated, better-quality portraits; an arrow or other UI so people find the new menus; racers disappearing when far ahead.
+
+| Request | What was done |
+|---|---|
+| Animated, better portraits | `blender_dkr_racer_faces.py`: 23 faces per DKR racer as 256 px PNGs. SpaghettiKart loads a PNG at its own size and takes texture coordinates from the 64x64 tile (libultraship `interpreter.cpp`, UV size from the tile's line size) [CONCLUSION from source; VERIFIED in screenshots]. Idle three-quarter view toward screen right like MK64's faces; blinks from DKR's eye texture frames (Diddy 3, Banjo and Conker 4: open .. shut, textureSize apart, `load_texture`); picked = DKR's horn taunt (racer animation 4, the Z button; `func_80052988`), turning to the front; lost = DKR's crash (animation 3) backwards, upright to slumped. Framed on the eye triangles so a tall cap or tail can't push the face out. The select cells run them like MK64's `func_800AA69C` (random single/double blinks, picked then held, played back on cancel); the cup award screen uses picked/held for 1st-3rd and lost for 4th and below. Race portraits rendered at 128x128 (4x) inside MK64's frame scaled up. |
+| UI for the new menus | Pulsing yellow arrows in the grid's margins point to the other page with its name ("DKR" / "MK64"); the page name moved under the banner. The cup select shows an arrow right of MK64's cups when N64KR cups follow, left of an N64KR cup's page. The Kart/Hover label moved to the top of the cell with a blue "R" (it covered the names); DKR names are centred on their plates and hidden while unpicked cells fade out. |
+| Racers disappear far ahead | MK64 draws a racer only inside a triangle ahead of the camera (`check_player_camera_collision`), 1200 units deep in a 1P race but only ~640 straight ahead (its far corners sit 58 deg out); N64KR's tracks are drawn to 6800 and are much longer. `n64kr_racer_draw_distance` (from `func_80039AE4`, N64KR HOOK) grows it to the far plane: FarPersp / cos(angle). All racers, sprites too; `gN64KR.FarRacers` 0 restores MK64's limits. |
+
+Checked in the game's own window with a temporary boot patch (not committed) that opens the select and cup screens [VERIFIED: screenshots]: both pages with arrows and labels, HD faces, the picked animation turning Banjo to the front with the OK prompt, cup select arrows on Mushroom Cup and the Rare Cup page. Not yet checked: the award screen faces, blinks over time, far racers in a race.

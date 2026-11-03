@@ -142,14 +142,25 @@ class Rom:
 
 # ---------------------------------------------------------------- textures
 
-def decode_texture(raw):
-    """Returns (width, height, rgba bytes, header flags) for the first frame."""
+def texture_frames(raw):
+    """Frame count of a texture asset (numOfTextures >> 8, header 0x12)."""
+    return max(1, raw[0x12])
+
+
+def decode_texture(raw, frame=0):
+    """Returns (width, height, rgba bytes, header flags, format) for one frame
+    (default the first). Animated textures (DKR racers' eyes: open .. shut)
+    store each frame as header + pixels, textureSize (header 0x16) bytes
+    apart (textures_sprites.c load_texture)."""
     width, height, fmt = raw[0], raw[1], raw[2] & 0xF
     flags = u16(raw, 6)
     body = dkr_inflate(raw[0x20:]) if raw[0x1D] else raw[0x20:]
     # Uncompressed: body follows the asset header. Compressed: the inflated
     # data starts with its own header.
     pixels = body[0x20:] if raw[0x1D] else body
+    if frame:
+        stride = u16(raw, 0x16)
+        pixels = pixels[min(frame, texture_frames(raw) - 1) * stride:]
     bpp = {0: 32, 1: 16, 2: 8, 3: 4, 4: 16, 5: 8, 6: 4, 7: 4, 8: 8}[fmt]
     row = (width * bpp) // 8
     data = bytearray(pixels[:row * height].ljust(row * height, b"\0"))
