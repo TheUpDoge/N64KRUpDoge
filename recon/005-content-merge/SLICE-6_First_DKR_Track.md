@@ -124,3 +124,8 @@ SLICE-6 passed: the first DKR track runs in N64KR, converted automatically from 
 - ~50 DKR `Animation` objects (animated props) not converted; music is CustomTrack default.
 - Sprite textures downscaled to fit TMEM (32×64 / 32×32).
 - Other DKR tracks not converted yet; the pipeline is generic but only tested on Ancient Lake.
+
+## Items through hills, second cause (user report, 2026-11-02)
+- Report: bananas show through the hills of the track, "likely shells and other things as well".
+- Cause [VERIFIED: exported lists + mk64.o2r]: every Fast64 mesh ends with `CallDisplayList mat_revert_*`, which runs `ClearGeometryMode G_FOG G_SHADE G_SHADING_SMOOTH G_ZBUFFER`, point filtering and no perspective correction. MK64's item lists don't set depth testing themselves: the banana list sets render mode `G_RM_AA_ZB_TEX_EDGE` but only touches `G_CULL_BACK` / `G_LIGHTING` in the geometry mode, so it relies on the track leaving `G_ZBUFFER` on, as MK64's own track lists do. `render_course_actors` (`racing/actors.c`) only clears `G_LIGHTING`. The earlier "Depth is fine" check above looked at the materials, not the revert list after them.
+- Fix: `n64kr_restore_track_state()` (`src/n64kr/render_state.c`, N64KR HOOK at the top of `render_course_actors`) sets `G_ZBUFFER | G_SHADE | G_CULL_BACK | G_SHADING_SMOOTH`, perspective-correct bilinear textures: the state the scene setup gives the track. Applies to every track, a no-op for MK64's own. Built; in-game retest pending.

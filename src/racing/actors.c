@@ -38,6 +38,7 @@
 #include "port/Game.h"
 #include "port/interpolation/FrameInterpolation.h"
 #include "engine/CoreMath.h"
+#include "n64kr/render_state.h" // N64KR HOOK
 
 #include <assets/other/tracks/moo_moo_farm/moo_moo_farm_data.h>
 
@@ -2376,6 +2377,7 @@ void render_course_actors(ScreenContext* screen) {
     sBillBoardMtx[1][1] = 1.0f;
     sBillBoardMtx[3][3] = 1.0f; // unk3c
 
+    n64kr_restore_track_state(); // N64KR HOOK: Fast64 tracks leave depth testing off (items drew through hills)
     gSPClearGeometryMode(gDisplayListHead++, G_LIGHTING);
     gSPSetLights1(gDisplayListHead++, D_800DC610[1]);
     gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);

@@ -8,6 +8,8 @@ All game content comes from **your own ROMs** at build or run time. This reposit
 
 > Built AI-assisted (Claude Code) and play-tested by hand. Every change is recorded in `recon/` with evidence labels: **VERIFIED** (source, build output or in-game test), **CONCLUSION**, or **HYPOTHESIS**.
 
+**Start here:** [docs/n64kr/](docs/n64kr/README.md): [how it works](docs/n64kr/HOW_IT_WORKS.md) (what changed, why, how, and the lessons learned), [setup](docs/n64kr/TUTORIAL_SETUP.md), and tutorials for adding [DKR racers](docs/n64kr/TUTORIAL_ADD_DKR_RACER.md), [DKR tracks](docs/n64kr/TUTORIAL_ADD_DKR_TRACK.md) and [GoldenEye content](docs/n64kr/TUTORIAL_GOLDENEYE.md).
+
 ---
 
 ## What's new
@@ -21,21 +23,23 @@ All game content comes from **your own ROMs** at build or run time. This reposit
 | First DKR track | **Ancient Lake** converted from your DKR ROM into a playable SpaghettiKart custom track: geometry, textures, scenery, sky, item boxes, minimap, AI path. | Tested in game |
 | Character registry | Racers are registry entries (`src/n64kr/character.c`): each names which MK64 character it borrows voice, HUD, size, AI and stats from until it has its own, plus optional own assets. MK64's 8 map to themselves, so the game is unchanged. Id 8 stays MK64's "no character" marker; new characters start at 9. | Tested in game |
 | **Diddy Kong** | A full new character from DKR: kart sprites rendered from his DKR 3D model (driving pose, steering wheels), portrait, minimap icon, name, his own DKR voice clips, a select screen cell, and CPU appearances in Grand Prix. | Tested in game |
-| **Banjo and Conker** | Two more DKR racers made the same way as Diddy (sprites, HUD, DKR voices incl. "I'm Banjo"/"I'm Conker", 3D models), on the DKR select page next to Diddy; DKR racers nobody picked join as CPUs; their own face on the cup award screen. | Tested in game; fixes from the first test (model textures, Banjo size, 3D vs sprite depth, award face, voice lists) built, retest pending |
-| Select screen pages | Push past the edge of the character grid to turn to the **DKR page**; pulsing arrows in the margins (with the other page's name) show the way, and the cup select gets arrows to the N64KR cups. MK64's 8-cell layout and menu code stay as they are; a page layer maps (page, cell) to a character. The Kart/Hover label sits at the top of the cell as "R KART". | Pages tested in game; arrows and label checked in screenshots, not yet by the user |
+| **Banjo and Conker** | Two more DKR racers made the same way as Diddy (sprites, HUD, DKR voices incl. "I'm Banjo"/"I'm Conker", 3D models), on the DKR select page next to Diddy; DKR racers nobody picked join as CPUs; their own face on the cup award screen. | Tested in game |
+| Select screen pages | Push past the edge of the character grid to turn to the **DKR page**; pulsing arrows in the margins (with the other page's name) show the way, and the cup select gets arrows to the N64KR cups. MK64's 8-cell layout and menu code stay as they are; a page layer maps (page, cell) to a character. The Kart/Hover label sits at the top of the cell as "R KART". | Pages tested in game; arrows and label checked in screenshots |
 | DKR faces | Animated select faces for the DKR racers at 4x MK64's detail: idle with blinks (DKR's eye frames), a picked animation (DKR's horn taunt, turning to face you), a lost one (DKR's crash) on the cup award screen; race portraits at 4x too. | Checked in screenshots; retest pending |
 | Far racers | Racers stay drawn out to the track's far plane instead of MK64's ~640 units ahead (they popped out on N64KR's long tracks). CVar `gN64KR.FarRacers` (default 1). | Built; retest pending |
+| Items behind hills | Items (bananas, shells, item boxes) no longer show through hills on converted tracks: Fast64's material revert lists switch depth testing off after the track, and MK64's item lists rely on it being on. | Built; retest pending |
 | **Dam Speedway** (GoldenEye) | A banked oval built over the reservoir of GoldenEye's Dam level, from your GoldenEye ROM: the level's scenery, Dam's own asphalt and striped walls, banked turns, water rescue. | Tested in game |
 | **Dam Speedway B** | Two Dams facing each other, joined across the water: a longer oval with a dam wall behind each turn. | Tested in game |
 | GoldenEye hazards | Oil drums on the road explode when touched (chain reactions, racers tumble); two of Dam's own watchtowers per track, each with a Dam guard (real GoldenEye model and animation) who raises his KF7 and fires bursts at passing racers. | Tested in game |
 | GoldenEye music and sound | The Dam theme plays on the Dam tracks (rendered from GoldenEye's own sequences and instruments, looping; the action version on the final lap); gunfire, explosions, ricochets. | Tested in game |
-| **Rare Cup** | A fifth cup in the cup select (after Special Cup, for Grand Prix and VS): Ancient Lake, Fossil Canyon (DKR), Dam Speedway, Dam Speedway B. Drawn as its own page: banner, course list and preview box as text. | Built; in-game test pending |
+| **Rare Cup** | A fifth cup in the cup select (after Special Cup, for Grand Prix and VS): Ancient Lake, Fossil Canyon (DKR), Dam Speedway, Dam Speedway B. Drawn as its own page: banner, course list and preview box as text. | Tested in game |
 | **3D racers** | Characters with a 3D model are drawn as real-time 3D instead of sprites (Diddy, from his DKR model, with steering poses). Boo/Lakitu translucency, boost afterimage and steering front wheels in progress. Sprites stay as the fallback. | Body tested in game; effects built, not yet tested |
 
 ### Known limits
 - Menu state still uses MK64's 8 stock ids, so a page character takes a stock character's "seat" (that character sits out of the race).
 - Time trial records and ghosts save a page character as the stock character of its cell.
-- Diddy's select cell is a still image (no blink/celebrate animation yet).
+- Trophies won in N64KR cups aren't kept in the save file (it only has MK64's cups); time trials don't list N64KR cups.
+- Converted DKR tracks have no music yet; DKR's moving scenery, animated water and zippers aren't converted.
 - 3D racers don't show star/lightning colour effects, slope tilt or wheel spin yet.
 
 ---
@@ -112,18 +116,20 @@ The full render takes a few minutes; `--preview` renders 12 sample frames. Banjo
 | `ge_hazards.{h,cpp}` | GoldenEye barrels and guards as track actors (`n64kr:ge_barrel`, `n64kr:ge_guard` in scene.json). |
 | `sfx.{h,cpp}` | Positional sound effects with their own voices, mixed next to the port's HMAS mixer. |
 | `music.{h,cpp}` | Other games' songs played through HMAS under N64KR sequence ids (a track's scene.json `Sequence`). |
-| `cups.{h,cpp}` | N64KR cups after the battle cup: registration, which cups each mode can pick, the cup page in the cup select. |
+| `cups.{h,cpp}` | N64KR cups after the battle cup: registration, which cups each mode can pick, the cup page and arrows in the cup select. |
+| `render_state.{h,c}` | Render state restored between MK64's draw passes (depth testing for items after Fast64 tracks). |
 
 ### Changes to SpaghettiKart's own files
-Upstream files only get thin one-line hooks, each marked `// N64KR HOOK`, so SpaghettiKart updates can still be merged. By file: `menu_items.c` 18, `player_controller.c` 9, `kart_dma.c` 9, `menus.c` 8, `render_objects.c` 7, `spawn_players.c` 6, `ending/code_80281780.c` 5, `render_player.c` 4, `code_80005FD0.c` 4, `audio/external.c` 3, `effects.c` 2, and one each in `racing/race_logic.c`, `racing/actors.c`, `racing/actors_extended.c`, `port/ui/PortMenu.cpp`, `port/Engine.cpp`, `menu_items.h`, `engine/editor/SceneManager.cpp`, `engine/actors/Cloud.cpp`, `ending/ceremony_and_credits.c`, `code_80057C60.c`. Besides that, the voice-line sites call `n64kr_char_voice_line` and per-character table reads go through the registry accessors (see `recon/006-selection/SLICE-8_Character_Registry.md`).
+Upstream files only get thin one-line hooks, each marked `// N64KR HOOK` (`grep -rn "N64KR HOOK" src`), so SpaghettiKart updates can still be merged. By file: `menu_items.c` 37, `menus.c` 10, `player_controller.c` 9, `kart_dma.c` 9, `spawn_players.c` 8, `render_objects.c` 7, `audio/external.c` 6, `render_player.c` 5, `ending/code_80281780.c` 5, `code_80005FD0.c` 4, `racing/actors.c` 3, `port/Game.cpp` 3, `port/Engine.cpp` 3, `engine/World.cpp` 3, `engine/registry/RegisterActors.cpp` 2, `effects.c` 2, and one each in `racing/race_logic.c`, `racing/actors_extended.c`, `port/ui/PortMenu.cpp`, `port/audio/HMAS.cpp`, `menu_items.h`, `engine/editor/SceneManager.cpp`, `engine/actors/Cloud.cpp`, `ending/ceremony_and_credits.c`, `code_80057C60.c`. Besides that, the voice-line sites call `n64kr_char_voice_line` and per-character table reads go through the registry accessors (see `recon/006-selection/SLICE-8_Character_Registry.md`).
 
 ---
 
 ## Building and playing
+Step by step with every command: [docs/n64kr/TUTORIAL_SETUP.md](docs/n64kr/TUTORIAL_SETUP.md). In short:
 1. Build SpaghettiKart as usual (`docs/BUILDING.md`) and generate `mk64.o2r` from your US Mario Kart 64 ROM.
 2. Run the tools above with your DKR ROM (US Rev 1 tested) to generate the mods into `build/x64/mods/`.
 3. For GoldenEye content, build the Rust tool and run the Dam commands above with your GoldenEye ROM (US).
-4. Launch. Diddy is on the DKR page (push right past the character grid). The Rare Cup (Ancient Lake, Fossil Canyon, Dam Speedway, Dam Speedway B) is past Special Cup in Grand Prix and VS; Fossil Canyon converts like Ancient Lake (`dkr_level_to_gltf.py … fossil_canyon build/dkr_tracks --mk64`, then the Blender and scene steps).
+4. Launch. Diddy, Banjo and Conker are on the DKR page (push right past the character grid, or follow the arrow). The Rare Cup (Ancient Lake, Fossil Canyon, Dam Speedway, Dam Speedway B) is past Special Cup in Grand Prix and VS; Fossil Canyon converts like Ancient Lake (`dkr_level_to_gltf.py … fossil_canyon build/dkr_tracks --mk64`, then the Blender and scene steps).
 
 ## Project records (`recon/`)
 Each step ("slice") has a record with what was found in the source, what was changed, and what was verified in game:

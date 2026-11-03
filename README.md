@@ -1,7 +1,11 @@
 ![Spaghetti Kart](docs/spaghettigithublight.png#gh-light-mode-only)
 ![Spaghetti Kart](docs/spaghettigithubnight.png#gh-dark-mode-only)
 
-> **This is N64KR**, a fork of SpaghettiKart that mixes in Diddy Kong Racing (new characters, DKR hovercraft, DKR tracks, 3D racers). See **[N64KR.md](N64KR.md)** for what's new, the tools, and how to build it. The rest of this README is SpaghettiKart's.
+> **This is N64KR**, a fork of SpaghettiKart that brings **Diddy Kong Racing** and **GoldenEye 007** into the Mario Kart 64 PC port: Diddy, Banjo and Conker as racers (sprites, 3D models, animated faces, their own voices), DKR's hovercraft physics, DKR tracks, and a GoldenEye Dam speedway with Dam's guards, exploding barrels and music, all generated from ROMs you own. Character, vehicle and handling are separate, so anyone can drive anything anywhere.
+>
+> **[N64KR.md](N64KR.md)**: what's new and its test status · **[How it works](docs/n64kr/HOW_IT_WORKS.md)**: what changed, why and how · **[Setup](docs/n64kr/TUTORIAL_SETUP.md)** · tutorials: [add a DKR racer](docs/n64kr/TUTORIAL_ADD_DKR_RACER.md), [add a DKR track](docs/n64kr/TUTORIAL_ADD_DKR_TRACK.md), [GoldenEye content](docs/n64kr/TUTORIAL_GOLDENEYE.md).
+>
+> This repository contains no ROM data. The rest of this README is SpaghettiKart's.
 
 ## Website & Discord
 
