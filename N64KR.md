@@ -21,6 +21,7 @@ All game content comes from **your own ROMs** at build or run time. This reposit
 | First DKR track | **Ancient Lake** converted from your DKR ROM into a playable SpaghettiKart custom track: geometry, textures, scenery, sky, item boxes, minimap, AI path. | Tested in game |
 | Character registry | Racers are registry entries (`src/n64kr/character.c`): each names which MK64 character it borrows voice, HUD, size, AI and stats from until it has its own, plus optional own assets. MK64's 8 map to themselves, so the game is unchanged. Id 8 stays MK64's "no character" marker; new characters start at 9. | Tested in game |
 | **Diddy Kong** | A full new character from DKR: kart sprites rendered from his DKR 3D model (driving pose, steering wheels), portrait, minimap icon, name, his own DKR voice clips, a select screen cell, and CPU appearances in Grand Prix. | Tested in game |
+| **Banjo and Conker** | Two more DKR racers made the same way as Diddy (sprites, HUD, DKR voices incl. "I'm Banjo"/"I'm Conker", 3D models), on the DKR select page next to Diddy; DKR racers nobody picked join as CPUs. | Built; in-game test pending |
 | Select screen pages | Push past the edge of the character grid to turn to the **DKR page**. MK64's 8-cell layout and menu code stay as they are; a page layer maps (page, cell) to a character. | Tested in game |
 | **Dam Speedway** (GoldenEye) | A banked oval built over the reservoir of GoldenEye's Dam level, from your GoldenEye ROM: the level's scenery, Dam's own asphalt and striped walls, banked turns, water rescue. | Tested in game |
 | **Dam Speedway B** | Two Dams facing each other, joined across the water: a longer oval with a dam wall behind each turn. | Tested in game |
@@ -79,7 +80,7 @@ tools/n64kr-rs/target/release/n64kr ge-hazards "<GoldenEye ROM>.z64" build/x64/m
 tools/n64kr-rs/target/release/n64kr ge-audio "<GoldenEye ROM>.z64" build/x64/mods/n64kr-ge-assets
 ```
 
-### Making Diddy (example)
+### Making a DKR racer (Diddy; Banjo and Conker the same way with `BanjoCar`/`ConkaCar`)
 ```bash
 python -I tools/n64kr/dkr_racer_to_gltf.py "<DKR ROM>.z64" diddycar build/dkr_racers
 blender -b docs/MK64_Spaghetti_Adjusted_Kart_Setup.blend --python tools/n64kr/blender_dkr_racer_sprites.py -- build/dkr_racers/diddycar build/x64/mods/n64kr-dkr-diddy diddy_kart
@@ -122,7 +123,7 @@ Upstream files only get thin one-line hooks, each marked `// N64KR HOOK`, so Spa
 
 ## Project records (`recon/`)
 Each step ("slice") has a record with what was found in the source, what was changed, and what was verified in game:
-`000-baseline` · `001-vehicle-profile` · `002-movement-switch` · `003-movement` (movement source map) · `004-hover` · `005-content-merge` (first DKR track) · `006-selection` (vehicle select, character registry, Diddy) · `007-3d-racers` · `008-goldeneye-dam` (Dam Speedway A/B, hazards, GoldenEye audio) · `009-circuit-select` (Rare Cup).
+`000-baseline` · `001-vehicle-profile` · `002-movement-switch` · `003-movement` (movement source map) · `004-hover` · `005-content-merge` (first DKR track) · `006-selection` (vehicle select, character registry, Diddy, Banjo and Conker) · `007-3d-racers` · `008-goldeneye-dam` (Dam Speedway A/B, hazards, GoldenEye audio) · `009-circuit-select` (Rare Cup).
 
 ## Roadmap
 - 3D racers: finish effects, then Mario (rigged model in SpaghettiKart's kart setup file) and the rest of the MK64 cast from other N64 games the user owns (Mario Party, Mario Tennis, Smash Bros.).

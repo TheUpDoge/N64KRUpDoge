@@ -24,6 +24,10 @@ static const N64krCharacter sCharacters[] = {
     // Mario's), HUD textures (laid out like Toad's), voice clips and a 3D model
     // (both from DKR); engine sound, size and stats borrowed from Toad.
     { "Diddy",  TOAD,   MARIO,  TOAD,   TOAD,   TOAD,   TOAD,   "diddy_kart", "diddy", "diddy", "racers/diddy" },
+    // Banjo and Conker, made the same way. Banjo drives like DK (heavy) and
+    // sounds like his kart; Conker like Yoshi (light, quick).
+    { "Banjo",  DK,     MARIO,  TOAD,   DK,     DK,     DK,     "banjo_kart", "banjo", "banjo", "racers/banjo" },
+    { "Conker", YOSHI,  MARIO,  TOAD,   YOSHI,  YOSHI,  YOSHI,  "conker_kart", "conker", "conker", "racers/conker" },
 };
 // clang-format on
 

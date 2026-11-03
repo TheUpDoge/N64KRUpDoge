@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <libultraship.h>
 #include <defines.h>
 #include <sounds.h>
@@ -15,24 +16,36 @@
 #define GRID_CELLS 8
 
 // Page 1, the DKR page: N64KR character per cell, -1 = empty.
-static const s32 sDkrPage[GRID_CELLS] = { N64KR_CHAR_DIDDY, -1, -1, -1, -1, -1, -1, -1 };
+static const s32 sDkrPage[GRID_CELLS] = {
+    N64KR_CHAR_DIDDY, N64KR_CHAR_BANJO, N64KR_CHAR_CONKER, -1, -1, -1, -1, -1,
+};
 
 static s32 sViewPage = 0;                       // page the grid is showing
 static s32 sPlayerPage[N64KR_MAX_HUMANS];       // page each human's cell is on
 static s32 sAlternate[N64KR_MAX_HUMANS] = { -1, -1, -1, -1 }; // page character; -1 = stock
 static s32 sCurrentController = 0;              // controller the movement code is handling
 static s8 sCellShownPage[GRID_CELLS];           // page each cell's face sequence shows
-static s32 sCpuSeatTaken = -1;                  // stock id a DKR CPU replaced, -1 = none
+// CPU seats DKR characters took over: stock id replaced -> DKR character.
+static s32 sCpuSeatStock[GRID_CELLS];
+static s32 sCpuSeatCharacter[GRID_CELLS];
+static s32 sCpuSeats = 0;
 
-// Diddy's cell: face and blank nameplate from his mod
-// (tools/n64kr/blender_dkr_racer_hud.py); the name is printed over the plate.
-static const char sDiddyFaceTexture[] = "__OTR__textures/player_selection/diddy_face_00";
-static const char sDiddyPlateTexture[] = "__OTR__textures/texture_tkmk00/texture_name_diddy";
-static MenuTexture sDiddyFace[] = { { 0, (u64*) sDiddyFaceTexture, 64, 64, 0, 0, 0 },
-                                    { 0, NULL, 0, 0, 0, 0, 0 } };
-static MenuTexture sDiddyPlate[] = { { 0, (u64*) sDiddyPlateTexture, 64, 12, 0, 64, 0 },
-                                     { 0, NULL, 0, 0, 0, 0, 0 } };
-static MkAnimation sDiddyFaceAnim[] = { { sDiddyFace, 100 }, { NULL, 0 } };
+// The DKR page's cells: face and blank nameplate from each character's mod
+// (tools/n64kr/blender_dkr_racer_hud.py, textures named after the hudName);
+// the name is printed over the plate.
+#define FACE(name) "__OTR__textures/player_selection/" name "_face_00"
+#define PLATE(name) "__OTR__textures/texture_tkmk00/texture_name_" name
+#define CELL_TEXTURES(name)                                                         \
+    { { { 0, (u64*) FACE(name), 64, 64, 0, 0, 0 }, { 0, NULL, 0, 0, 0, 0, 0 } },     \
+      { { 0, (u64*) PLATE(name), 64, 12, 0, 64, 0 }, { 0, NULL, 0, 0, 0, 0, 0 } } }
+#define DKR_CELLS 3
+static MenuTexture sCellTextures[DKR_CELLS][2][2] = { CELL_TEXTURES("diddy"), CELL_TEXTURES("banjo"),
+                                                      CELL_TEXTURES("conker") };
+static MkAnimation sCellFaceAnim[DKR_CELLS][2] = {
+    { { sCellTextures[0][0], 100 }, { NULL, 0 } },
+    { { sCellTextures[1][0], 100 }, { NULL, 0 } },
+    { { sCellTextures[2][0], 100 }, { NULL, 0 } },
+};
 
 // Character on (page, cell 1..8); -1 = nothing there.
 static s32 page_cell_character(s32 page, s32 gridId) {
@@ -144,8 +157,8 @@ s32 n64kr_grid_cell_update(MenuItem* item, s32 cell) {
         if (sViewPage == 0) {
             item->subState = 0; // restart the stock idle/blink state machine
             func_8009A594(item->D_8018DEE0_index, 0, D_800E8360[cell]);
-        } else if ((sViewPage == 1) && (cell == 0)) {
-            func_8009A594(item->D_8018DEE0_index, 0, sDiddyFaceAnim);
+        } else if ((sViewPage == 1) && (cell < DKR_CELLS) && (sDkrPage[cell] >= 0)) {
+            func_8009A594(item->D_8018DEE0_index, 0, sCellFaceAnim[cell]);
         }
     }
     return sViewPage != 0;
@@ -159,11 +172,18 @@ s32 n64kr_grid_cell_draw(MenuItem* item, s32 cell) {
     if (sViewPage == 0) {
         return 0;
     }
-    if ((cell == 0) && (sDkrPage[0] >= 0)) {
-        func_800A12BC(item, sDiddyPlate);
+    if ((cell < DKR_CELLS) && (sDkrPage[cell] >= 0)) {
+        const N64krCharacter* c = n64kr_get_character(sDkrPage[cell]);
+        char label[16];
+        s32 i;
+        func_800A12BC(item, sCellTextures[cell][1]);
         func_8009A76C(item->D_8018DEE0_index, item->column, item->row, item->param1);
+        for (i = 0; (c != NULL) && (c->name[i] != '\0') && (i < 15); i++) {
+            label[i] = (char) toupper((unsigned char) c->name[i]);
+        }
+        label[i] = '\0';
         set_text_color(TEXT_YELLOW);
-        print_text1_center_mode_1(item->column + 0x20, item->row + 0x40, "DIDDY", 0, 0.45f, 0.45f);
+        print_text1_center_mode_1(item->column + 0x20, item->row + 0x40, label, 0, 0.45f, 0.45f);
     }
     return 1; // empty cells draw nothing
 }
@@ -199,25 +219,57 @@ u16 n64kr_spawn_character(s32 playerIndex, u16 characterId, s32 playerType) {
     return (u16) n64kr_human_character(playerIndex);
 }
 
+// CPU racers: every DKR page character no human picked takes a random stock
+// CPU seat (MK64's roster, rivals and GP bookkeeping keep the stock id of
+// the seat; n64kr_rival_character maps it back).
 void n64kr_cpu_roster(s16* roster, s32 count) {
+    s32 cell;
     s32 i;
 
-    sCpuSeatTaken = -1;
-    if (count < 1) {
-        return;
-    }
-    for (i = 0; (i < gPlayerCount) && (i < N64KR_MAX_HUMANS); i++) {
-        if (n64kr_human_character(i) == N64KR_CHAR_DIDDY) {
-            return;
+    sCpuSeats = 0;
+    for (cell = 0; (cell < GRID_CELLS) && (sCpuSeats < count); cell++) {
+        const s32 dkr = sDkrPage[cell];
+        s32 taken = 0;
+        s32 seat;
+        s32 tries;
+        if (dkr < 0) {
+            continue;
         }
+        for (i = 0; (i < gPlayerCount) && (i < N64KR_MAX_HUMANS); i++) {
+            taken |= (n64kr_human_character(i) == dkr);
+        }
+        if (taken) {
+            continue;
+        }
+        // A random seat not already swapped.
+        seat = random_int((u16) count);
+        for (tries = 0; tries < count; tries++, seat = (seat + 1) % count) {
+            s32 used = 0;
+            for (i = 0; i < sCpuSeats; i++) {
+                used |= (sCpuSeatStock[i] == roster[seat]);
+            }
+            if (!used) {
+                break;
+            }
+        }
+        if (tries == count) {
+            break;
+        }
+        sCpuSeatStock[sCpuSeats] = roster[seat];
+        sCpuSeatCharacter[sCpuSeats] = dkr;
+        sCpuSeats++;
+        roster[seat] = (s16) dkr;
     }
-    i = random_int((u16) count);
-    sCpuSeatTaken = roster[i];
-    roster[i] = N64KR_CHAR_DIDDY;
 }
 
 s32 n64kr_rival_character(s32 stockId) {
-    return ((sCpuSeatTaken >= 0) && (stockId == sCpuSeatTaken)) ? N64KR_CHAR_DIDDY : stockId;
+    s32 i;
+    for (i = 0; i < sCpuSeats; i++) {
+        if (sCpuSeatStock[i] == stockId) {
+            return sCpuSeatCharacter[i];
+        }
+    }
+    return stockId;
 }
 
 s32 n64kr_gp_seed_character(s32 index) {

@@ -39,6 +39,8 @@ VOICE_GROUP = ["krunch", "bumper", "tiptup", "conker", "timber", "banjo", "drums
 POSITIVE1, NEGATIVE1, GROUP_STRIDE = 0x0162, 0x01C2, 12
 SPECIAL = {  # one-off lines (include/sound_ids.h)
     "diddy": {"laugh": 0x0042, "laugh2": 0x0044, "woah": 0x009C, "select": 0x0090},
+    "banjo": {"laugh": 0x0043, "laugh2": 0x0078, "woah": 0x0098, "select": 0x008C},  # GUHHUH, YAHOO, WOAH, "I'm Banjo"
+    "conker": {"laugh": 0x002E, "woah": 0x0096, "select": 0x008A},  # YEHAHA, AHH, "I'm Conker"
 }
 
 

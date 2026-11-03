@@ -25,6 +25,8 @@ extern "C" {
 
 #define N64KR_CHAR_NONE 8 // MK64's "no character" marker
 #define N64KR_CHAR_DIDDY 9
+#define N64KR_CHAR_BANJO 10
+#define N64KR_CHAR_CONKER 11
 
 typedef struct {
     const char* name;
